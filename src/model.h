@@ -27,4 +27,7 @@ public:
 	vector<dvec3> normal;
 	vector<dvec2> texture;
 
+
+
+    
 };
