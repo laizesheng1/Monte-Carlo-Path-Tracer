@@ -1,0 +1,3 @@
+C:/Users/wuyifan/Desktop/Monte-Carlo-Path-Tracer/build/CMakeFiles/PathTracer.dir
+C:/Users/wuyifan/Desktop/Monte-Carlo-Path-Tracer/build/CMakeFiles/ALL_BUILD.dir
+C:/Users/wuyifan/Desktop/Monte-Carlo-Path-Tracer/build/CMakeFiles/ZERO_CHECK.dir
