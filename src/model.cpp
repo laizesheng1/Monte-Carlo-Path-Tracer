@@ -24,7 +24,12 @@ Model::Model(string filename)
         {
             std::smatch res;
             if (regex_search(line, res, std::regex("mtllib\\s+(\\S+)")))
-                load_material(parentPath.string() + "/" + res[1].str());      //get .mtl path
+            {
+                string mtlname = res[1].str();
+                load_material(parentPath.string() + "/" + mtlname);      //get .mtl path
+                string xmlname = mtlname.replace(mtlname.size() - 3, 3, "xml");
+                loadCameraFromXML(parentPath.string() + "/" + xmlname);
+            }
         }
         else if (line[0] == 'v')
         {
@@ -172,4 +177,75 @@ void Model::load_material(string filename)
         i.ks = ks;
         i.tr = tr;
     }
+}
+
+void Model::loadCameraFromXML(const std::string& filename) {
+    pugi::xml_document doc;
+    if (!doc.load_file(filename.c_str())) {
+        std::cerr << "Error: Failed to load XML file: " << filename << std::endl;
+        return;
+    }
+
+    // 获取 camera 节点
+    pugi::xml_node cameraNode = doc.child("camera");
+    if (!cameraNode) {
+        std::cerr << "Error: No <camera> node found in XML file." << std::endl;
+    }
+
+    // 提取相机参数
+    camerainfo.width = cameraNode.attribute("width").as_int();
+    camerainfo.height = cameraNode.attribute("height").as_int();
+    camerainfo.fovy = cameraNode.attribute("fovy").as_double();
+
+    // 提取 eye 节点
+    pugi::xml_node eyeNode = cameraNode.child("eye");
+    if (eyeNode) {
+        camerainfo.eye.x = eyeNode.attribute("x").as_double();
+        camerainfo.eye.y = eyeNode.attribute("y").as_double();
+        camerainfo.eye.z = eyeNode.attribute("z").as_double();
+    }
+    else {
+        std::cerr << "Error: No <eye> node found in <camera>." << std::endl;
+    }
+
+    // 提取 lookat 节点
+    pugi::xml_node lookatNode = cameraNode.child("lookat");
+    if (lookatNode) {
+        camerainfo.lookat.x = lookatNode.attribute("x").as_double();
+        camerainfo.lookat.y = lookatNode.attribute("y").as_double();
+        camerainfo.lookat.z = lookatNode.attribute("z").as_double();
+    }
+    else {
+        std::cerr << "Error: No <lookat> node found in <camera>." << std::endl;
+    }
+
+    // 提取 up 节点
+    pugi::xml_node upNode = cameraNode.child("up");
+    if (upNode) {
+        camerainfo.up.x = upNode.attribute("x").as_double();
+        camerainfo.up.y = upNode.attribute("y").as_double();
+        camerainfo.up.z = upNode.attribute("z").as_double();
+    }
+    else {
+        std::cerr << "Error: No <up> node found in <camera>." << std::endl;
+    }
+    //get light info
+    pugi::xml_node lightNode = doc.child("light");
+    if (!lightNode) {
+        std::cerr << "Error: No <light> node found in XML file." << std::endl;
+    }
+    lightinfo.light_mtl = lightNode.attribute("mtlname").as_string();
+    std::string radianceStr = lightNode.attribute("radiance").as_string();
+    size_t comma1 = radianceStr.find(',');
+    size_t comma2 = radianceStr.find(',', comma1 + 1);
+
+    if (comma1 == std::string::npos || comma2 == std::string::npos) {
+        std::cerr << "Error: Invalid radiance format in <light> node." << std::endl;
+    }
+
+    lightinfo.radiance.x = std::stod(radianceStr.substr(0, comma1));
+    lightinfo.radiance.y = std::stod(radianceStr.substr(comma1 + 1, comma2 - comma1 - 1));
+    lightinfo.radiance.z = std::stod(radianceStr.substr(comma2 + 1));
+    /*camerainfo.print();
+    lightinfo.print();*/
 }

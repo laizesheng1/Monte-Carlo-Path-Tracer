@@ -10,22 +10,20 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 find_package(OpenGL REQUIRED)
 # find_package(GLEW REQUIRED)
 
-set(GLFW_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/glfw/include")
-set(GLFW_LIBRARIES "${CMAKE_SOURCE_DIR}/glfw/lib/glfw3.lib")
-set(GLM_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/glm")
-
-include_directories(${GLFW_INCLUDE_DIR})
-include_directories(${GLM_INCLUDE_DIR})
-
-file(GLOB_RECURSE ALL_SOURCE   
-${PROJECT_SOURCE_DIR}/src/*.c
-${PROJECT_SOURCE_DIR}/src/*.cpp
-${PROJECT_SOURCE_DIR}/src/*.hpp
-${PROJECT_SOURCE_DIR}/src/*.h
+link_directories(${CMAKE_SOURCE_DIR}/packages/glfw/lib)
+include_directories(${CMAKE_SOURCE_DIR}/packages)
+include_directories(${CMAKE_SOURCE_DIR}/src/*.h)
+add_library(pugixml STATIC
+    ${CMAKE_SOURCE_DIR}/packages/xml/pugixml.cpp
+    ${CMAKE_SOURCE_DIR}/packages/xml/pugixml.hpp
 )
 
-include_directories(${PROJECT_SOURCE_DIR}/src)
-
-# add the executable
+file(GLOB_RECURSE ALL_SOURCE   
+${CMAKE_SOURCE_DIR}/src/*.cpp
+${CMAKE_SOURCE_DIR}/src/*.h
+${CMAKE_SOURCE_DIR}/src/*.hpp
+)
 add_executable(${PROJECT_NAME} ${ALL_SOURCE})
-target_link_libraries(PathTracer PRIVATE OpenGL::GL ${GLFW_LIBRARIES})
+
+target_link_libraries(${PROJECT_NAME}  glfw3.lib opengl32.lib pugixml)
+source_group(TREE "${CMAKE_SOURCE_DIR}" FILES ${ALL_SOURCE})
