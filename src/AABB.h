@@ -1,22 +1,17 @@
+#ifndef AABB_H
+#define AABB_H
+
 #include "utils.h"
 #include <memory>
 #include <vector>
 #include <string>
 
-class Triangle
-{
-
-public:
-	dvec3 v0,v1,v2,nomal,texture;
-	dvec3 A, B;		//min vertex
-
-};
 
 class Scene
 {
 public:
 	Scene(int width,int heigh);
-	Color3f& get_pixel_at(const Point2i& location);
+	void set_Pixel(const Point2i& location,Color3f color);
 	const Color3b* getPixelsColor() const;
 	void save_image(int frame);
 private:	
@@ -25,3 +20,4 @@ private:
 	std::unique_ptr<std::vector<Color3b>> m_ColorsUchar;
 
 };
+#endif

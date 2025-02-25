@@ -63,7 +63,6 @@ public:
 	vector<dvec3> normal;
 	vector<dvec2> texture;
     vector<imat3x4> face;   //{v_idx,vt_idx,vn_idx,material_idx}
-    //dvec3 A, B;     //Bounding box min_vertex,max_vertex
     vector<Material> materials;
     CameraInfo camerainfo;
     LightInfo lightinfo;

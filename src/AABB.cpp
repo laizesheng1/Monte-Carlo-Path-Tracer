@@ -8,10 +8,13 @@ Scene::Scene(int width, int heigh): w(width),h(heigh)
 	m_ColorsUchar = std::unique_ptr<std::vector<Color3b>>(new std::vector<Color3b>(w * h));
 }
 
-Color3f& Scene::get_pixel_at(const Point2i& location)
+void Scene::set_Pixel(const Point2i& location, Color3f color)
 {
 	int idx = location.y * w + location.x;
-	return m_Pixels[idx];
+    //if (color[0] != color[0]) color[0] = 0.0;
+    //if (color[1] != color[1]) color[1]= 0.0;
+    //if (color[2] != color[2]) color[2]= 0.0;
+    m_Pixels[idx] += color;
 }
 
 const Color3b* Scene::getPixelsColor() const
