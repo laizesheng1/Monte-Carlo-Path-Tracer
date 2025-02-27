@@ -1,4 +1,7 @@
-﻿#include <iostream>
+﻿#ifndef MODEL_H
+#define MODEL_H
+
+#include <iostream>
 #include <vector>
 #include <map>
 #include <fstream>
@@ -12,6 +15,8 @@
 #include "utils.h"
 
 using namespace std;
+
+class Triangle;
 
 struct Material
 {
@@ -62,14 +67,17 @@ public:
 	vector<dvec3> vertex;
 	vector<dvec3> normal;
 	vector<dvec2> texture;
-    vector<imat3x4> face;   //{v_idx,vt_idx,vn_idx,material_idx}
+    vector<imat3x4> face;   //{v_idx,vn_idx,vt_idx,material_idx}
     vector<Material> materials;
     CameraInfo camerainfo;
     LightInfo lightinfo;
+    //vector<std::shared_ptr<Triangle>> triangles;
     Model(string filename);
 private:
     //<material ,idx>
     map<string, int> material_map;
     void load_material(string filename);
     void loadCameraFromXML(const std::string& filename);
+    void load_Model(string filename);       //use tinyobjloader
 };
+#endif

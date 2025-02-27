@@ -1,4 +1,7 @@
-﻿#include "model.h"
+﻿#define TINYOBJLOADER_IMPLEMENTATION
+#include "tiny_obj_loader.h"
+#include "model.h"
+#include "Render.h"
 
 Model::Model(string filename)
 {
@@ -114,6 +117,82 @@ Model::Model(string filename)
     }
 }
 
+//void Model::load_Model(string filename) {
+//    // Load OBJ file using tinyobjloader
+//    tinyobj::attrib_t attrib;
+//    vector<tinyobj::shape_t> shapes;
+//    vector<tinyobj::material_t> materials;
+//
+//    string err;
+//    bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &err, filename.c_str());
+//
+//    if (!ret) {
+//        cerr << "Error loading OBJ file: " << err << endl;
+//        return;
+//    }
+//
+//    // 材料映射
+//    map<string, Material> material_map;
+//    vector<Triangle> triangles;
+//
+//    // 处理材质
+//    for (const auto& mtl : materials) {
+//        // 将材质信息映射到 Material 类实例
+//        Material mtl_instance;
+//        // 填充 mtl_instance, 例如:
+//        // mtl_instance.color = glm::dvec3(mtl.diffuse[0], mtl.diffuse[1], mtl.diffuse[2]);
+//        material_map[mtl.name] = mtl_instance;
+//    }
+//
+//    // 遍历所有形状和面
+//    for (const auto& shape : shapes) {
+//        for (size_t f = 0; f < shape.mesh.num_face_vertices.size(); ++f) {
+//            size_t num_face_vertices = size_t(shape.mesh.num_face_vertices[f]);
+//
+//            // 每个面是一个三角形
+//            if (num_face_vertices != 3) continue;
+//
+//            Triangle tri;  // 假设第一个材质
+//
+//            // 获取三角形的顶点索引、法线索引、纹理坐标索引
+//            for (size_t v = 0; v < 3; ++v) {
+//                int idx = shape.mesh.indices[f * 3 + v];
+//
+//                // 顶点坐标
+//                tri.v[v] = dvec3(attrib.vertices[3 * idx + 0],
+//                    attrib.vertices[3 * idx + 1],
+//                    attrib.vertices[3 * idx + 2]);
+//
+//                // 法线
+//                if (!attrib.normals.empty()) {
+//                    int vn_idx = shape.mesh.indices[f * 3 + v].normal_index;
+//                    tri.vn[v] = dvec3(attrib.normals[3 * vn_idx + 0],
+//                        attrib.normals[3 * vn_idx + 1],
+//                        attrib.normals[3 * vn_idx + 2]);
+//                }
+//
+//                // 纹理坐标
+//                if (!attrib.texcoords.empty()) {
+//                    int uv_idx = shape.mesh.indices[f * 3 + v].texcoord_index;
+//                    tri.uv[v] = dvec2(attrib.texcoords[2 * uv_idx + 0],
+//                        attrib.texcoords[2 * uv_idx + 1]);
+//                }
+//            }
+//
+//            // 计算包围盒
+//            tri.A = tri.B = tri.v[0];
+//            for (int i = 1; i < 3; ++i) {
+//                tri.A = glm::min(tri.A, tri.v[i]);
+//                tri.B = glm::max(tri.B, tri.v[i]);
+//            }
+//
+//            // 将三角形加入到三角形列表
+//            triangles.push_back(tri);
+//        }
+//    }
+//    cout << "Loaded " << triangles.size() << " triangles from " << filename << endl;
+//}
+
 void Model::load_material(string filename)
 {
     std::ifstream fs;
@@ -139,44 +218,44 @@ void Model::load_material(string filename)
         }
         // update material details
         if (regex_search(line, result, std::regex("\\s*Kd\\s+(\\S+)\\s+(\\S+)\\s+(\\S+)")))
-            materials.back().Kd = { stof(result[1]), stof(result[2]), stof(result[3]) };
+            materials.back().Kd = { stod(result[1]), stod(result[2]), stod(result[3]) };
         else if (regex_search(line, result, std::regex("\\s*Ks\\s+(\\S+)\\s+(\\S+)\\s+(\\S+)")))
-            materials.back().Ks = { stof(result[1]), stof(result[2]), stof(result[3]) };
+            materials.back().Ks = { stod(result[1]), stod(result[2]), stod(result[3]) };
         else if (regex_search(line, result, std::regex("\\s*Kr\\s+(\\S+)\\s+(\\S+)\\s+(\\S+)")))
-            materials.back().Tr = { stof(result[1]), stof(result[2]), stof(result[3]) };
+            materials.back().Tr = { stod(result[1]), stod(result[2]), stod(result[3]) };
         else if (regex_search(line, result, std::regex("\\s*Ns\\s+(\\S+)")))
-            materials.back().Ns = stof(result[1]);
+            materials.back().Ns = stod(result[1]);
         else if (regex_search(line, result, std::regex("\\s*Ni\\s+(\\S+)")))
-            materials.back().Ni = stof(result[1]);
+            materials.back().Ni = stod(result[1]);
         else
             continue;
     }
-    for (Material& i : materials)
-    {
-        double kd = glm::max(i.Kd.x, glm::max( i.Kd.y, i.Kd.z));
-        double ks = glm::max(i.Ks.x, glm::max(i.Ks.y, i.Ks.z));
-        double tr = glm::max(i.Tr.x, glm::max( i.Tr.y, i.Tr.z));
-        double _sum = kd + ks + tr; // kd + ks + Tr <= 1;
-        if (_sum > 1)
-        {
-            kd /= _sum;
-            ks /= _sum;
-            tr /= _sum;
-            i.Kd /= _sum;
-            i.Ks /= _sum;
-            i.Tr /= _sum;
-        }
-        // 调整加权系数，使得 Kd * kd + Ks * ks + Tr * Tr = (1,1,1)
-        if (kd > 0)
-            i.Kd /= kd;
-        if (ks > 0)
-            i.Ks /= ks;
-        if (tr > 0)
-            i.Tr /= tr;
-        i.kd = kd;
-        i.ks = ks;
-        i.tr = tr;
-    }
+    //for (Material& i : materials)
+    //{
+    //    double kd = glm::max(i.Kd.x, glm::max( i.Kd.y, i.Kd.z));
+    //    double ks = glm::max(i.Ks.x, glm::max(i.Ks.y, i.Ks.z));
+    //    double tr = glm::max(i.Tr.x, glm::max( i.Tr.y, i.Tr.z));
+    //    double _sum = kd + ks + tr; // kd + ks + Tr <= 1;
+    //    if (_sum > 1)
+    //    {
+    //        kd /= _sum;
+    //        ks /= _sum;
+    //        tr /= _sum;
+    //        i.Kd /= _sum;
+    //        i.Ks /= _sum;
+    //        i.Tr /= _sum;
+    //    }
+    //    // 调整加权系数，使得 Kd * kd + Ks * ks + Tr * Tr = (1,1,1)
+    //    if (kd > 0)
+    //        i.Kd /= kd;
+    //    if (ks > 0)
+    //        i.Ks /= ks;
+    //    if (tr > 0)
+    //        i.Tr /= tr;
+    //    i.kd = kd;
+    //    i.ks = ks;
+    //    i.tr = tr;
+    //}
 }
 
 void Model::loadCameraFromXML(const std::string& filename) {
@@ -195,6 +274,8 @@ void Model::loadCameraFromXML(const std::string& filename) {
     // 提取相机参数
     camerainfo.width = cameraNode.attribute("width").as_int();
     camerainfo.height = cameraNode.attribute("height").as_int();
+    //camerainfo.width = 500;
+    //camerainfo.height = 500;
     camerainfo.fovy = cameraNode.attribute("fovy").as_double();
 
     // 提取 eye 节点

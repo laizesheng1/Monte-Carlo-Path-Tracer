@@ -1,9 +1,77 @@
 #include "Render.h"
+#include "BVH.h"
+
+AABB Triangle::get_bbox() const 
+{
+    AABB box;
+    for (int i = 0; i < 3; i++)
+    {
+        box=box.Union(v[i]);
+    }
+    return box;
+    //return AABB(A, B);
+}
+
+dvec3 Triangle::center() const
+{
+    return (v[0] + v[1] + v[2]) / 3.0;
+}
+
+dvec3 Triangle::interplote_Vertex(double b1, double b2) const
+{
+    return (1 - b1 - b2) * v[0] + b1 * v[1] + b2 * v[2];
+}
+dvec3 Triangle::interplote_Normal(double b1, double b2) const
+{
+    return glm::normalize((1 - b1 - b2) * vn[0] + b1 * vn[1] + b2 * vn[2]);
+}
+dvec2 Triangle::interplote_Texture(double b1, double b2) const
+{
+    return (1 - b1 - b2) * uv[0] + b1 * uv[1] + b2 * uv[2];
+}
+
+bool Triangle::hit(const Ray& ray, hitInfo& info, double& t_max) const
+{
+    dvec3 edge1 = v[1] - v[0];
+    dvec3 edge2 = v[2] - v[0];
+    dvec3 h = cross(ray.direction, edge2);
+    double a = dot(edge1, h);
+    dvec3 s = ray.start - v[0];
+    double u = dot(s, h);
+    dvec3 q = cross(s, edge1);
+    double v = dot(ray.direction, q);
+    double t = dot(edge2, q);
+    double inv_a = 1.0 / a;
+    u *= inv_a;
+    v *= inv_a;
+    t *= inv_a;
+
+   if(t >= ray.t1 && t < ray.t2 && u >= 0 && v >= 0 && (1 - u - v) >= 0)
+   {
+       if(t<t_max)
+       {
+           info.t = t;
+           //info.point = ray.start + ray.direction * t;
+           info.point = interplote_Vertex(u, v);
+           //info.normal = normalize(cross(edge1, edge2));
+           info.normal = interplote_Normal(u, v);
+           info.front = dot(info.normal, ray.direction) < 0.0;     // 判断射线是否与正面相交
+           //info.wi = ray.start - info.point;  // 交点到射线起点的向量
+           info.wi = -ray.direction;
+           info.uv = interplote_Texture(u, v);
+           info.mtl = mtl;
+           t_max = t;
+           return true;
+       }
+   }
+   return false;
+}
 
 Render::Render(Model& m_model):model(m_model)
 {
     setCamera();
     tranform_triangle();
+    bvh=new BVH(triangles);
 }
 
 void Render::tranform_triangle()
@@ -14,38 +82,38 @@ void Render::tranform_triangle()
     // 遍历模型中的所有面
     for (const auto& face : model.face)
     {
-        Triangle triangle(model.materials[0]);      //默认第一个材料
+        Triangle triangle= Triangle();
         for (int i = 0; i < 3; ++i)
         {
             int v_idx = face[i][0];
-            int vt_idx = face[i][1];
-            int vn_idx = face[i][2];
+            int vn_idx = face[i][1];
+            int vt_idx = face[i][2];
 
             // 获取顶点、法线和纹理坐标
             dvec3 vertex = model.vertex[v_idx];
             dvec3 normal = model.normal[vn_idx];
             dvec2 uv = model.texture[vt_idx];
 
-            // 应用缩放
-            vertex *= scale;
-            normal *= scale;
-
-            // 应用平移（pose 是一个 4x4 的变换矩阵）
-            dvec4 vertex_homogeneous = dvec4(vertex, 1.0);
-            dvec4 normal_homogeneous = dvec4(normal, 0.0);
-
-            vertex_homogeneous = pose * vertex_homogeneous;
-            normal_homogeneous = pose * normal_homogeneous;
+            //// 应用缩放
+            //vertex *= scale;
+            //normal *= scale;
+            //// 应用平移（pose 是一个 4x4 的变换矩阵）
+            //dvec4 vertex_homogeneous = dvec4(vertex, 1.0);
+            //dvec4 normal_homogeneous = dvec4(normal, 0.0);
+            //vertex_homogeneous = pose * vertex_homogeneous;
+            //normal_homogeneous = pose * normal_homogeneous;
 
             // 转换回 3D 向量
-            triangle.v[i] = dvec3(vertex_homogeneous);
-            triangle.vn[i] = dvec3(normal_homogeneous);
+            /*triangle.v[i] = dvec3(vertex_homogeneous);
+            triangle.vn[i] = dvec3(normal_homogeneous);*/
+            triangle.v[i] = vertex;
+            triangle.vn[i] = normal;
             triangle.uv[i] = uv;
         }
 
         // 获取材质
         int material_idx = face[0][3];      // 每个面的材质索引在第一个顶点的 material_idx 中
-        triangle.tri_mtl = model.materials[material_idx];
+        triangle.mtl = std::make_shared<Material>(model.materials[material_idx]);
 
         // 计算 A 和 B（最小和最大顶点）
         triangle.A = min(triangle.v[0], min(triangle.v[1], triangle.v[2]));
@@ -119,83 +187,63 @@ void Render::render(Scene& scene)
     }
 }
 
-Ray& Render::cast_Ray(int x, int y)
+Ray Render::cast_Ray(int x, int y)
 {
-    float h = std::tan(camera.fov * std::_Pi_val / 180.f * 0.5f) * 2.0f;
-    float aspect_ratio = static_cast<float>(camera.w) / camera.h;
-    auto front = glm::normalize(camera.lookat - camera.eye);
-    vec3 right = glm::normalize(glm::cross(front, camera.up));
-    vec3 ver = camera.up * h;
-    vec3 hor = right * h * aspect_ratio;
+    double h = std::tan(camera.fov * std::_Pi_val / 180.0 * 0.5) * 2.0;
+    double aspect_ratio = static_cast<double>(camera.w) / camera.h;
+    dvec3 front = glm::normalize(camera.lookat - camera.eye);
+    dvec3 right = glm::normalize(glm::cross(front, camera.up));
+    dvec3 ver = camera.up * h;
+    dvec3 hor = right * h * aspect_ratio;
 
-    float u = (x + rand1f()) / model.camerainfo.width;
-    float v = (y + rand1f()) / model.camerainfo.height;
-    vec3 pos = camera.eye + camera.lookat + (u - 0.5f) * hor + (v - 0.5f) * ver;
-    vec3 dir = glm::normalize(pos - camera.eye);
+    double u = (x + rand1f()) / model.camerainfo.width;
+    double v = (y + rand1f()) / model.camerainfo.height;
+    dvec3 pos = camera.eye + front + (u - 0.5) * hor + (v - 0.5) * ver;
+    dvec3 dir = glm::normalize(pos - camera.eye);
     return Ray(camera.eye, dir);
 }
 
 
-Color3f& Render::ray_tracing(Ray& ray, int depth)
+Color3f Render::ray_tracing(Ray& ray, int depth)
 {
-    Color3f L = Color3f(0.f);
-    Color3f beta(1.f);
-
     if (depth > MAX_DEPTH) {
-        return L;
+        return Color3f(0.f);
     }
 
-    for (auto& triangle : triangles) {
-        if (isIntersect(ray, triangle)) {
-            Material material = triangle.tri_mtl;
-            Color3f contribution = calculateColor(material, ray, triangle);
-            L += beta * contribution;
-        }
+    hitInfo info;
+    if (bvh->hit(ray, info))
+    {
+        dvec3 color_d = info.mtl->Kd * glm::dot(-ray.direction, info.normal);
+        //dvec3 color_d = info.mtl->Kd;
+        Color3f color = glm::vec3(color_d);
+        return color;
     }
+    else return Color3f(0.f);
 
-    // 如果需要进一步的递归（例如，考虑次级光线）
-    // 例如，对于次级光线，可以创建新的光线并递归调用 ray_tracing
-    
-
-    return L;
+    //don't use acc
+    //double pre_t= std::numeric_limits<double>::max();
+    //bool ishit = false;
+    //for (auto triangle : triangles) {
+    //    AABB boundingbox = triangle.get_bbox();
+    //    if(!boundingbox.Intersection(ray))
+    //        continue;
+    //    if (triangle.hit(ray, info, pre_t))
+    //    {
+    //        ishit = true;
+    //    }
+    //}
+    //if (ishit)
+    //{
+    //    dvec3 color_d = info.mtl->Kd * glm::dot(-ray.direction, info.normal);
+    //    //dvec3 color_d = info.mtl->Kd;
+    //    Color3f color = glm::vec3(color_d);
+    //    return color;       
+    //}
+    //else {
+    //    return Color3f(0.f);
+    //}
+    vec3 reflect_dir = glm::reflect(ray.direction, info.normal);
+    Ray new_ray(info.point, reflect_dir);
+    return ray_tracing(new_ray, depth + 1);       
 }
 
-Color3f Render::calculateColor(const Material& material, const Ray& ray, const Triangle& triangle)
-{
-    Color3f color(0.f, 0.f, 0.f);
-
-    // 漫反射计算
-    dvec3 diffuse = material.Kd * material.kd;
-    dvec3 lightDir = -ray.direction;
-    dvec3 normal = (triangle.v[0] + triangle.v[1] + triangle.v[2]) / 3.0;
-    double diff = glm::dot(normal, lightDir);
-    if (diff > 0) {
-        color += Color3f(diffuse * diff);
-    }
-
-    // 镜面反射计算
-    dvec3 specular = material.Ks * material.ks;
-    dvec3 viewDir = glm::normalize(ray.direction);
-    dvec3 reflectDir = glm::reflect(-lightDir, normal);
-    double spec = pow(glm::dot(viewDir, reflectDir), material.Ns);
-    if (spec > 0) {
-        color += Color3f(specular * spec);
-    }
-
-    // 折射计算（透明度）
-    if (material.Tr != dvec3(0, 0, 0) && material.tr > 0) {
-        // 折射光线计算，需要根据斯涅尔定律来计算折射方向
-        // 以及根据材质的折射率（Ni）来决定光线是折射还是反射
-        dvec3 refractDir;
-        double refractiveIndexRatio = material.Ni / 1.0; // 假设外部介质折射率为1.0
-        double cosi = glm::dot(-ray.direction, normal);
-        double k = 1 - refractiveIndexRatio * refractiveIndexRatio * (1 - cosi * cosi);
-        if (k >= 0) {
-            refractDir = glm::refract(ray.direction, normal, refractiveIndexRatio);
-            // 根据折射率计算颜色贡献，这里简化处理
-            color += Color3f(material.Tr * material.tr);
-        }
-    }
-
-    return color;
-}

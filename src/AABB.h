@@ -6,18 +6,23 @@
 #include <vector>
 #include <string>
 
+class Ray;
 
-class Scene
+class AABB
 {
 public:
-	Scene(int width,int heigh);
-	void set_Pixel(const Point2i& location,Color3f color);
-	const Color3b* getPixelsColor() const;
-	void save_image(int frame);
-private:	
-	int w, h;
-	std::unique_ptr<Color3f[]> m_Pixels;
-	std::unique_ptr<std::vector<Color3b>> m_ColorsUchar;
+	AABB() :A(dvec3(std::numeric_limits<double>::max())), B(dvec3(std::numeric_limits<double>::lowest())) {}
+	AABB(dvec3 _min, dvec3 _max) :A(_min), B(_max) {}
 
+    AABB Union(AABB& box) const;
+    AABB Union(dvec3 point) const;
+	bool contain(dvec3 point);
+	int max_axis();
+    bool Intersection(const Ray& ray) const;
+    Point3f Center() const;
+public:
+    dvec3 A,B;
 };
+
+
 #endif

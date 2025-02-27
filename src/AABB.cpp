@@ -1,36 +1,49 @@
 #include "AABB.h"
-#define STB_IMAGE_WRITE_IMPLEMENTATION	
-#include "stb_image/stb_image_write.h"
+#include "Render.h"
 
-Scene::Scene(int width, int heigh): w(width),h(heigh)
-{
-	m_Pixels = std::unique_ptr<Color3f[]>(new Color3f[w * h]);
-	m_ColorsUchar = std::unique_ptr<std::vector<Color3b>>(new std::vector<Color3b>(w * h));
+AABB AABB::Union(AABB& box) const {
+	return AABB(glm::min(A, box.A), glm::max(B, box.B));
 }
 
-void Scene::set_Pixel(const Point2i& location, Color3f color)
-{
-	int idx = location.y * w + location.x;
-    //if (color[0] != color[0]) color[0] = 0.0;
-    //if (color[1] != color[1]) color[1]= 0.0;
-    //if (color[2] != color[2]) color[2]= 0.0;
-    m_Pixels[idx] += color;
+AABB AABB::Union(dvec3 point) const {
+	return AABB(glm::min(A, point), glm::max(B, point));
 }
 
-const Color3b* Scene::getPixelsColor() const
-{
-    float gamma = 1.f / 2.f;
-    for (int i = 0; i < w * h; i++)
-    {
-        Color3f rgb = m_Pixels[i];
-        rgb = glm::pow(glm::clamp(rgb, vec3(0), vec3(1)), vec3(gamma));
-        (*m_ColorsUchar)[i] = rgb * 255.99f;
-    }
-    return m_ColorsUchar->data();
+bool AABB::contain(dvec3 point) {
+	return (point.x >= A.x) && (point.y <= B.x) &&
+		(point.y >= A.y) && (point.y <= B.y) &&
+		(point.z >= A.z) && (point.z <= B.z);
 }
 
-void Scene::save_image(int frame)
-{
-    std::string file = "../results/" + std::to_string(frame) + ".png";
-    stbi_write_png(file.c_str(), w, h, 3, getPixelsColor(), 0);
+int AABB::max_axis() {
+	int axis = 0;
+	auto len = B.x - A.x;
+	for (int i = 0; i < 3; i++) {
+		auto t = B[i] - A[i];
+		if (len < t) {
+			len = t;
+			axis = i;
+		}
+	}
+	return axis;
 }
+
+Point3f AABB::Center() const
+{
+	return (A + B) / 2.0;
+}
+
+bool AABB::Intersection(const Ray& ray) const {
+	dvec3 v0 = (A - ray.start) / ray.direction;
+	dvec3 v1 = (B - ray.start) / ray.direction;
+	auto tmin = ray.t1, tmax = ray.t2;
+	for (int i = 0; i < 3; i++) {
+		if (v0[i] > v1[i]) std::swap(v0[i], v1[i]);
+		v1[i] *= 1.001;
+		tmin = tmin < v0[i] ? v0[i] : tmin;
+		tmax = tmax > v1[i] ? v1[i] : tmax;
+	}
+	return tmin < tmax;
+}
+
+
