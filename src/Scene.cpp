@@ -18,7 +18,6 @@ void Scene::set_Pixel(const Point2i& location, Color3f& color)
     if (color.z != color.z) color.z = 0.0;
     m_Pixels[idx].color += color;
     m_Pixels[idx].spp += 1.0f;
-    //std::cout << "After update: idx = " << idx << ", color = " << m_Pixels[idx].color.x<<" "<< m_Pixels[idx].color.y << " "<< m_Pixels[idx].color.z << std::endl;
 }
 
 const Color3b* Scene::getPixelsColor()

@@ -70,9 +70,9 @@ bool BVH::hit(Ray& ray, hitInfo& info)
 			}
 		}
 		else {
-			//if(!node->left)		//why every not leaf node->left should push st
+			if(node->left)
 				st.push(node->left);
-			//if(!node->right)
+			if(node->right)
 				st.push(node->right);
 		}
 	}

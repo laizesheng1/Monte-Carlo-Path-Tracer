@@ -1,7 +1,36 @@
 ﻿#define TINYOBJLOADER_IMPLEMENTATION
 #include "tiny_obj_loader.h"
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image/stb_image.h"
 #include "model.h"
 #include "Render.h"
+
+Texture::Texture(string filename)
+{
+    int w, h, channel;
+    float* data = stbi_loadf(filename.c_str(), &w, &h, &channel, 0);
+    image_w = w;
+    image_h = h;
+    Color3f c(0);
+    for (int i = 0; i < w * h; ++i) {
+        int t = i * 3;
+        c.x = data[t];
+        c.y = data[t + 1];
+        c.z = data[t + 2];
+        image_color.push_back(c);
+    }
+    stbi_image_free(data);
+}
+
+Color3f Texture::get_color(const dvec2& uv)
+{
+    double u = clamp01(glm::fract(uv.x));        //保证纹理坐标在0-1之间
+    double v = clamp01(glm::fract(uv.y));
+    int x = static_cast<int>(u * image_w);      //获取纹理坐标在图像对应的像素点坐标
+    int y = static_cast<int>(v * image_h);
+    return image_color.at(y * image_w + x);
+}
+
 
 Model::Model(string filename)
 {
@@ -195,6 +224,8 @@ Model::Model(string filename)
 
 void Model::load_material(string filename)
 {
+    std::filesystem::path pathObj(filename);
+    std::filesystem::path parentPath = pathObj.parent_path();
     std::ifstream fs;
     fs.open(filename);
     if (!fs.is_open())
@@ -216,46 +247,26 @@ void Model::load_material(string filename)
             materials.push_back(Material());
             continue;
         }
+        
         // update material details
         if (regex_search(line, result, std::regex("\\s*Kd\\s+(\\S+)\\s+(\\S+)\\s+(\\S+)")))
             materials.back().Kd = { stod(result[1]), stod(result[2]), stod(result[3]) };
         else if (regex_search(line, result, std::regex("\\s*Ks\\s+(\\S+)\\s+(\\S+)\\s+(\\S+)")))
             materials.back().Ks = { stod(result[1]), stod(result[2]), stod(result[3]) };
-        else if (regex_search(line, result, std::regex("\\s*Kr\\s+(\\S+)\\s+(\\S+)\\s+(\\S+)")))
+        else if (regex_search(line, result, std::regex("\\s*Tr\\s+(\\S+)\\s+(\\S+)\\s+(\\S+)")))
             materials.back().Tr = { stod(result[1]), stod(result[2]), stod(result[3]) };
         else if (regex_search(line, result, std::regex("\\s*Ns\\s+(\\S+)")))
             materials.back().Ns = stod(result[1]);
         else if (regex_search(line, result, std::regex("\\s*Ni\\s+(\\S+)")))
             materials.back().Ni = stod(result[1]);
+        else if (regex_search(line, result, std::regex("map_Kd\\s+(\\S+)")))
+        {
+            textures.push_back(Texture(parentPath.string() + "/" + std::string(result[1])));
+            materials.back().Map_Kd = std::make_shared<Texture>(textures.back());
+        }
         else
             continue;
     }
-    //for (Material& i : materials)
-    //{
-    //    double kd = glm::max(i.Kd.x, glm::max( i.Kd.y, i.Kd.z));
-    //    double ks = glm::max(i.Ks.x, glm::max(i.Ks.y, i.Ks.z));
-    //    double tr = glm::max(i.Tr.x, glm::max( i.Tr.y, i.Tr.z));
-    //    double _sum = kd + ks + tr; // kd + ks + Tr <= 1;
-    //    if (_sum > 1)
-    //    {
-    //        kd /= _sum;
-    //        ks /= _sum;
-    //        tr /= _sum;
-    //        i.Kd /= _sum;
-    //        i.Ks /= _sum;
-    //        i.Tr /= _sum;
-    //    }
-    //    // 调整加权系数，使得 Kd * kd + Ks * ks + Tr * Tr = (1,1,1)
-    //    if (kd > 0)
-    //        i.Kd /= kd;
-    //    if (ks > 0)
-    //        i.Ks /= ks;
-    //    if (tr > 0)
-    //        i.Tr /= tr;
-    //    i.kd = kd;
-    //    i.ks = ks;
-    //    i.tr = tr;
-    //}
 }
 
 void Model::loadCameraFromXML(const std::string& filename) {
@@ -311,22 +322,23 @@ void Model::loadCameraFromXML(const std::string& filename) {
         std::cerr << "Error: No <up> node found in <camera>." << std::endl;
     }
     //get light info
-    pugi::xml_node lightNode = doc.child("light");
-    if (!lightNode) {
-        std::cerr << "Error: No <light> node found in XML file." << std::endl;
-    }
-    lightinfo.light_mtl = lightNode.attribute("mtlname").as_string();
-    std::string radianceStr = lightNode.attribute("radiance").as_string();
-    size_t comma1 = radianceStr.find(',');
-    size_t comma2 = radianceStr.find(',', comma1 + 1);
+    for (pugi::xml_node lightNode : doc.children("light")) {
+        string light_mtl = lightNode.attribute("mtlname").as_string();
 
-    if (comma1 == std::string::npos || comma2 == std::string::npos) {
-        std::cerr << "Error: Invalid radiance format in <light> node." << std::endl;
-    }
+        std::string radianceStr = lightNode.attribute("radiance").as_string();
+        size_t comma1 = radianceStr.find(',');
+        size_t comma2 = radianceStr.find(',', comma1 + 1);
 
-    lightinfo.radiance.x = std::stod(radianceStr.substr(0, comma1));
-    lightinfo.radiance.y = std::stod(radianceStr.substr(comma1 + 1, comma2 - comma1 - 1));
-    lightinfo.radiance.z = std::stod(radianceStr.substr(comma2 + 1));
+        if (comma1 == std::string::npos || comma2 == std::string::npos) {
+            std::cerr << "Error: Invalid radiance format in <light> node." << std::endl;
+            continue;
+        }
+        dvec3 radiance;
+        radiance.x = std::stod(radianceStr.substr(0, comma1));
+        radiance.y = std::stod(radianceStr.substr(comma1 + 1, comma2 - comma1 - 1));
+        radiance.z = std::stod(radianceStr.substr(comma2 + 1));
+        camerainfo.lightinfo[light_mtl] = radiance;
+    }
     /*camerainfo.print();
     lightinfo.print();*/
 }

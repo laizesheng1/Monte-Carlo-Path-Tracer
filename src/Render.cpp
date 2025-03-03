@@ -183,6 +183,7 @@ void Render::render(Scene& scene)
         int x = i % w, y = i / w;
         Ray ray = cast_Ray(x, y);
         Color3f color = ray_tracing(ray, 0);
+        //Color3f color = ray_tracing(ray);
         scene.set_Pixel({ x,y }, color);
     }
 }
@@ -211,39 +212,46 @@ Color3f Render::ray_tracing(Ray& ray, int depth)
     }
 
     hitInfo info;
-    if (bvh->hit(ray, info))
+    if (!bvh->hit(ray, info))
     {
+        return Color3f(0.f);
+    }    
+    else{
         dvec3 color_d = info.mtl->Kd * glm::dot(-ray.direction, info.normal);
-        //dvec3 color_d = info.mtl->Kd;
         Color3f color = glm::vec3(color_d);
+        if (info.mtl->Kd.x == 0 && info.mtl->Map_Kd != nullptr)
+        {
+            color = info.mtl->Map_Kd->get_color(info.uv);
+        }
         return color;
     }
-    else return Color3f(0.f);
 
-    //don't use acc
-    //double pre_t= std::numeric_limits<double>::max();
-    //bool ishit = false;
-    //for (auto triangle : triangles) {
-    //    AABB boundingbox = triangle.get_bbox();
-    //    if(!boundingbox.Intersection(ray))
-    //        continue;
-    //    if (triangle.hit(ray, info, pre_t))
-    //    {
-    //        ishit = true;
-    //    }
-    //}
-    //if (ishit)
-    //{
-    //    dvec3 color_d = info.mtl->Kd * glm::dot(-ray.direction, info.normal);
-    //    //dvec3 color_d = info.mtl->Kd;
-    //    Color3f color = glm::vec3(color_d);
-    //    return color;       
-    //}
-    //else {
-    //    return Color3f(0.f);
-    //}
     vec3 reflect_dir = glm::reflect(ray.direction, info.normal);
     Ray new_ray(info.point, reflect_dir);
     return ray_tracing(new_ray, depth + 1);       
+}
+
+Color3f Render::ray_tracing(Ray& ray)
+{
+    Color3f L = vec3(0.0f);
+    hitInfo info;
+    for (int bounce = 0; bounce < 10; bounce++)
+    {        
+        if (!bvh->hit(ray, info))
+        {
+            break;
+        }
+        if (info.mtl->Kd.x == 0 && info.mtl->Map_Kd != nullptr)
+        {
+            L = info.mtl->Map_Kd->get_color(info.uv);
+        }
+        dvec3 color_d = info.mtl->Kd * glm::dot(-ray.direction, info.normal);
+        Color3f color = glm::vec3(color_d);
+        L += color;   
+        vec3 reflect_dir = glm::reflect(ray.direction, info.normal);
+        Ray new_ray(info.point, reflect_dir);
+        ray = new_ray;
+    }
+    return L;
 }
 

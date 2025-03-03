@@ -72,7 +72,7 @@ private:
 	void setCamera();
 	Color3f ray_tracing(Ray& ray,int depth);		//ray tracing
 	Ray cast_Ray(int x,int y);		//获取从摄像机到pixel的ray
-	Color3f calculateColor(const Material& material, const Ray& ray, const Triangle& triangle);
+	Color3f ray_tracing(Ray& ray);
 };
 
 #endif

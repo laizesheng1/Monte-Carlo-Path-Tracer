@@ -17,9 +17,17 @@ using Point2f = glm::vec2;
 using vec3= glm::vec3;
 using dmat4x4 = glm::dmat4x4;
 
+#define PI 3.1415926
+
 inline float rand1f() {
     static std::random_device rd;
     static std::mt19937 generator(rd());
     static std::uniform_real_distribution<> distrib(0, 1);
     return distrib(generator);
+}
+
+inline double clamp01(float d) {
+    if (d > 0.999f) return 0.999;
+    if (d < 0.0f) return 0.0;
+    return d;
 }
