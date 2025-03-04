@@ -58,9 +58,9 @@ Model::Model(string filename)
             if (regex_search(line, res, std::regex("mtllib\\s+(\\S+)")))
             {
                 string mtlname = res[1].str();
-                load_material(parentPath.string() + "/" + mtlname);      //get .mtl path
                 string xmlname = mtlname.replace(mtlname.size() - 3, 3, "xml");
-                loadCameraFromXML(parentPath.string() + "/" + xmlname);
+                loadCameraFromXML(parentPath.string() + "/" + xmlname);                
+                load_material(parentPath.string() + "/" + res[1].str());      //get .mtl path                
             }
         }
         else if (line[0] == 'v')
@@ -245,6 +245,8 @@ void Model::load_material(string filename)
         {
             material_map[std::string(result[1])] = material_map.size();
             materials.push_back(Material());
+            if (camerainfo.lightinfo.count(std::string(result[1])))
+                materials.back().radiance = camerainfo.lightinfo[std::string(result[1])];
             continue;
         }
         

@@ -36,6 +36,7 @@ struct Material
     double Ns = 1;                // 高光反射参数
     double Ni = 1;                // 物质折射率
     std::shared_ptr<Texture> Map_Kd;                      // 纹理贴图
+    dvec3 radiance=dvec3(0);        //light radiance
 };
 
 class CameraInfo

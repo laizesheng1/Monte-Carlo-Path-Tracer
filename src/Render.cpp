@@ -119,6 +119,9 @@ void Render::tranform_triangle()
         triangle.A = min(triangle.v[0], min(triangle.v[1], triangle.v[2]));
         triangle.B = max(triangle.v[0], max(triangle.v[1], triangle.v[2]));
         triangles.push_back(triangle);
+
+        if (glm::length(triangle.mtl->radiance) > 0.01)
+            lights.push_back(triangle);        
     }
 }
 
@@ -255,3 +258,7 @@ Color3f Render::ray_tracing(Ray& ray)
     return L;
 }
 
+Color3f Render::sample_light(const hitInfo& info)
+{
+
+}

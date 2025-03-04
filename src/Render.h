@@ -67,12 +67,14 @@ private:
 	Camera camera;
 	BVH* bvh;
 	vector<Triangle> triangles;
+	vector<Triangle> lights;
 	void tranform_triangle();
 	bool isIntersect(Ray& ray, Triangle& tri);
 	void setCamera();
 	Color3f ray_tracing(Ray& ray,int depth);		//ray tracing
 	Ray cast_Ray(int x,int y);		//获取从摄像机到pixel的ray
 	Color3f ray_tracing(Ray& ray);
+	Color3f sample_light(const hitInfo& info);
 };
 
 #endif
