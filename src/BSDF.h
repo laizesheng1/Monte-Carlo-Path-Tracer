@@ -10,7 +10,7 @@ class coordiantetransform
 {
 public:
 	vec3 u, v, w;
-
+    coordiantetransform() {}
 	coordiantetransform(const vec3& n):w(n) {       //以n为z轴建立的局部坐标系
 		vec3 a = (fabs(w.x) > 0.9f) ? vec3(0, 1, 0) : vec3(1, 0, 0);
 		v = glm::normalize(cross(w, a));
@@ -28,10 +28,10 @@ public:
 
 struct Scatterinfo
 {
-	dvec3 wo;		//反射之后的方向
-	dvec3 f;	    //颜色
-	double pdf;		//
-    Scatterinfo(dvec3 d, dvec3 c, double p) :wo(d), f(c), pdf(p) {}
+	vec3 wo;		//反射之后的方向
+	vec3 f;	    //颜色
+	float pdf;		//
+    Scatterinfo(vec3 d, vec3 c, double p) :wo(d), f(c), pdf(p) {}
     Scatterinfo() {}
 };
 
@@ -39,6 +39,7 @@ class Scatter
 {
 public:
     Scatter(const Color3f& r) : reflect(r) {}
+    virtual vec3 Fx(const vec3& wi) const = 0;
     virtual Scatterinfo Sample() const = 0;
     virtual float Pdf(const vec3& wi) const = 0;
 public:
@@ -50,6 +51,7 @@ class Diffuse : public Scatter
 {
 public:
     Diffuse(const Color3f& r, const vec3& wo) : Scatter(r), m_wo(wo) {}
+    virtual vec3 Fx(const vec3& wi) const override;
     virtual Scatterinfo Sample() const override;
     virtual float Pdf(const vec3& wi) const override;
 private:
@@ -60,9 +62,8 @@ class Specular : public Scatter
 {
 public:
     Specular(const Color3f& r, float co, const vec3& wo)
-        : Scatter(r), coefficient(co), m_wo(wo)
-    {
-    }
+        : Scatter(r), coefficient(co), m_wo(wo){ }
+    virtual vec3 Fx(const vec3& wi) const override;
     virtual Scatterinfo Sample() const override;
     virtual float Pdf(const vec3& wi) const override;
 private:
@@ -73,6 +74,13 @@ private:
 class BSDF
 {
 public:
+    BSDF(hitInfo& info);
+    BSDF() {}
+    Scatterinfo lambertian_diffuse(hitInfo& info);
+    Scatterinfo blinn_phong_specular(hitInfo& info);
+    Scatterinfo specular_reflection_and_transmission(hitInfo& info);
+    std::shared_ptr<Scatter> sca;
+private:
 
 };
 #endif

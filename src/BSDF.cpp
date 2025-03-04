@@ -1,22 +1,164 @@
 #include "BSDF.h"
 #include "Render.h"
 
+vec3 Diffuse::Fx(const vec3& wi) const
+{
+    return (wi.z < 0 || m_wo.z < 0) ? vec3(0) : (reflect / PI);
+}
+
 Scatterinfo Diffuse::Sample() const
 {    
-    if (m_wo.z < 0.f)
-        return Scatterinfo(dvec3(0), dvec3(0), 0);
-    auto info = Scatterinfo();
-    // cosine hemisphere sampling
+    if (m_wo.z < 0.f) {
+        return Scatterinfo(vec3(0), vec3(0), 0.f);
+    }
     float phi = rand1f() * 2 * PI;
     float theta = 0.5f * acos(1 - 2 * rand1f());
-    vec3 v(sin(theta) * cos(phi),
+    vec3 v(
+        sin(theta) * cos(phi),
         sin(theta) * sin(phi),
-        cos(theta));
-    auto pdf = std::abs(v[2]) / PI;
-    if (v.z < 0 || m_wo.z < 0)
-        info.f = Color3f(0);
-    else info.f = reflect / PI;
-    info.pdf = pdf;
-    info.wo = cos(theta) * m_wo;
-    return info;
+        cos(theta)
+    );
+    float pdf = std::abs(v.z) / PI;
+    vec3 f = Fx(v);
+    return Scatterinfo(v, f, pdf);
 }
+
+float Diffuse::Pdf(const vec3& wi) const
+{
+    return (wi.z < 0 || m_wo.z < 0) ? 0.f : (wi.z / PI);
+}
+
+vec3 Specular::Fx(const vec3& wi) const
+{
+    if (wi.z < 0 || m_wo.z < 0)
+        return vec3(0);
+    auto H = glm::normalize(wi + m_wo);
+    float normFactor = (coefficient + 2) / (2.f * PI);
+    return reflect * normFactor * std::pow(H.z, coefficient);
+}
+
+Scatterinfo Specular::Sample() const
+{
+    if (m_wo.z < 0.f)
+        return Scatterinfo(vec3(0), vec3(0), 0.f);
+
+    // random halfway vector
+    auto u = rand1f(), v = rand1f();
+    auto phi = 2 * PI * u;
+    auto cosTheta = std::pow(v, 1.f / (coefficient + 1));
+    auto sinTheta = std::sqrt(1.f - cosTheta * cosTheta);
+    vec3 H(
+        sinTheta * cos(phi),
+        sinTheta * sin(phi),
+        cosTheta
+    );
+    auto wi = -m_wo + H * 2.f * glm::dot(H, m_wo);
+    if (wi.z < 0.f)
+    {
+        return Scatterinfo(vec3(0), vec3(0), 0.f);
+    }
+    // TODO: pdf normalization
+    auto pdf = (coefficient + 1) / (2.f * PI) * std::pow(cosTheta, coefficient);
+    return {wi, Fx(wi), pdf};
+}
+
+
+
+BSDF::BSDF(hitInfo& info)
+{
+    coordiantetransform onb = coordiantetransform(info.normal);
+    auto localwi = onb.worldTolocal(info.wi);
+    auto mat = info.mtl;
+    auto kd = mat->Map_Kd->get_color(info.uv);
+    auto ks = mat->Ks;
+    auto ns = mat->Ns;
+
+    //if (mat->Ni > 1)       //Õ∏…‰transmission
+    //{
+    //    sca = std::make_shared<Specular>(mat->Ni, localwi);
+    //}
+    //else if (glm::length(mat->Ks) > 0.01)      //∑¥…‰/specular
+    //{
+
+    //}
+    sca = std::make_shared<Diffuse>(kd, localwi);
+}
+
+Scatterinfo BSDF::lambertian_diffuse(hitInfo& info) {
+    coordiantetransform onb = coordiantetransform(info.normal);
+    vec3 local_dir = random_cosine_direction();
+    vec3 dir = onb.localToworld(local_dir);
+    float pdf = std::fabs(local_dir.z *INV_PI);
+    vec3 f = info.mtl->Map_Kd->get_color(info.uv) * INV_PI;
+    return { dir,f,pdf };
+}
+
+Scatterinfo BSDF::blinn_phong_specular(hitInfo& info) {
+    coordiantetransform onb(info.normal);
+    vec3 local_wi = onb.worldTolocal(info.wi);
+    if (local_wi.z < 0.f)
+        return {};
+
+    float u = rand1f(), v = rand1f();
+    float phi = 2 * PI * u;
+    float ns = info.mtl->Ns;
+    auto cosTheta = std::pow(v, 1.f / (ns + 1));
+    auto sinTheta = std::sqrt(1.f - cosTheta * cosTheta);
+    vec3 H(
+        sinTheta * cos(phi),
+        sinTheta * sin(phi),
+        cosTheta
+    );
+
+    vec3 dir = -local_wi + H * 2.0f * glm::dot(H, local_wi);
+    if (dir.z < 0.f) {
+        return {};
+    }
+    auto pdf = (ns + 1) / (2.f * PI) * std::pow(cosTheta, ns);
+    vec3  f;
+    vec3 h = glm::normalize(local_wi + dir);
+    float normFactor = (ns + 2) / (2.f * PI);
+    f = vec3(info.mtl->Ks) * normFactor * std::pow(h.z, ns);
+    if (local_wi.z < 0.0f || dir.z < 0.0f)
+        f = vec3(0);
+    return { onb.localToworld(dir), f ,pdf};
+}
+
+Scatterinfo BSDF::specular_reflection_and_transmission(hitInfo& info) {
+    coordiantetransform onb(info.normal);
+    bool backface = !info.front;
+    float eta_o = 1.f, eta_i = info.mtl->Ni;
+    if (backface)
+        std::swap(eta_o, eta_i);
+    vec3 n = backface ? vec3(0, 0, -1) : vec3(0, 0, 1);
+    vec3 local_wi = onb.worldTolocal(info.wi);
+    float cos_o = backface ? -local_wi.z : local_wi.z;
+    float sin_o = std::sqrt(1.f - cos_o * cos_o);
+    float sin_i = eta_o / eta_i * sin_o;
+    float cos_i = 0.f;
+
+    // calculate fresnel
+    float fresnel = 0.f;
+    if (sin_i > 1.f)
+        fresnel = 1.f;
+    else {
+        cos_i = std::sqrt(1.f - sin_i * sin_i);
+        fresnel = calculateFresnelDielectric(eta_o, eta_i, cos_o, cos_i);
+    }
+    vec3 dir, fr;
+    float pdf = 0;
+    if (rand1f() < fresnel) {
+        dir = vec3(-local_wi.x, -local_wi.y, local_wi.z);
+        fr = fresnel * Color3f(1.f) / std::fabs(dir.z);
+        pdf = fresnel;
+    }
+    else {
+        float eta = eta_o / eta_i;
+        dir = -eta * local_wi + (eta * cos_o - cos_i) * n;
+        fr = (1 - fresnel) * Color3f(1.f) * eta * eta / cos_i;
+        pdf = 1.f - fresnel;
+    }
+    return { onb.localToworld(dir),fr,pdf };
+}
+
+

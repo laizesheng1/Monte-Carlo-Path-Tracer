@@ -15,6 +15,7 @@ struct BVH_node
 	std::vector<std::shared_ptr<Triangle>> contain_tri;
 	AABB box;
 	BVH_node() :left(nullptr), right(nullptr) {}
+	bool hit(Ray& ray, hitInfo& info, double& pre_t);
 };
 
 class BVH

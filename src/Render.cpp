@@ -1,5 +1,6 @@
 #include "Render.h"
 #include "BVH.h"
+#include "BSDF.h"
 
 AABB Triangle::get_bbox() const 
 {
@@ -218,47 +219,91 @@ Color3f Render::ray_tracing(Ray& ray, int depth)
     if (!bvh->hit(ray, info))
     {
         return Color3f(0.f);
-    }    
-    else{
-        dvec3 color_d = info.mtl->Kd * glm::dot(-ray.direction, info.normal);
-        Color3f color = glm::vec3(color_d);
-        if (info.mtl->Kd.x == 0 && info.mtl->Map_Kd != nullptr)
-        {
-            color = info.mtl->Map_Kd->get_color(info.uv);
-        }
-        return color;
     }
+    if (glm::length(info.mtl->radiance) > 0.01)     //材质为自发光
+    {
+        return info.mtl->radiance;
+    }
+    Scatterinfo scat_info;
+    auto& mat = info.mtl;
+    //BSDF bsdf(info);
+    //scat_info=bsdf.sca->Sample();
+    
+    BSDF bsdf;
+    if (mat->Ni > 1) {
+        scat_info = bsdf.specular_reflection_and_transmission(info);
+    }
+    else if (glm::length(mat->Ks)) {
+        scat_info = bsdf.blinn_phong_specular(info);
+    }
+    else
+        scat_info = bsdf.lambertian_diffuse(info);
 
-    vec3 reflect_dir = glm::reflect(ray.direction, info.normal);
-    Ray new_ray(info.point, reflect_dir);
-    return ray_tracing(new_ray, depth + 1);       
+    
+    Ray new_ray(info.point, scat_info.wo);
+    return scat_info.f*ray_tracing(new_ray, depth + 1);
 }
 
 Color3f Render::ray_tracing(Ray& ray)
 {
-    Color3f L = vec3(0.0f);
+    Color3f L = Color3f(0.f);
+
+    Color3f beta(1.f);
     hitInfo info;
-    for (int bounce = 0; bounce < 10; bounce++)
-    {        
-        if (!bvh->hit(ray, info))
-        {
+
+    for (int bounces = 0; ; bounces++)
+    {
+        if (!bvh->hit(ray, info))        
             break;
-        }
-        if (info.mtl->Kd.x == 0 && info.mtl->Map_Kd != nullptr)
+        Scatterinfo scat_info;
+        auto& mat = info.mtl;
+        BSDF bsdf(info);
+        //
+        scat_info = bsdf.sca->Sample();
+        if (scat_info.pdf == 0.f)
+            break;
+        Ray newray(info.point, scat_info.wo);
+        hitInfo nextInfo;        
+        if (!bvh->hit(newray, nextInfo))
+            break;
+        beta *= scat_info.f * std::abs(glm::dot(vec3(info.normal), scat_info.wo)) / scat_info.pdf;
+
+        // sample contribution
+        //auto light = nextIsec->primitive->GetAreaLight();
+        //auto lightradiance = nextInfo.mtl->radiance;
+        /*if (light && !nextIsec->backface)
         {
-            L = info.mtl->Map_Kd->get_color(info.uv);
+            auto lightPdf = light->Pdf(info.point, nextIsec->point, nextIsec->normal) / float(lights.size());
+            auto weight = power_heuristic(scat_info.pdf, lightPdf);
+            L += beta * light->radiance * weight;            
+        }*/
+        info = nextInfo;
+        // Russian roulette
+        if (bounces > 3)
+        {
+            auto q = std::min(std::max(std::max(beta.x, beta.y), beta.z), 0.95f);
+            if (rand1f() > q)
+                break;
+            beta /= q;
         }
-        dvec3 color_d = info.mtl->Kd * glm::dot(-ray.direction, info.normal);
-        Color3f color = glm::vec3(color_d);
-        L += color;   
-        vec3 reflect_dir = glm::reflect(ray.direction, info.normal);
-        Ray new_ray(info.point, reflect_dir);
-        ray = new_ray;
     }
     return L;
 }
 
-Color3f Render::sample_light(const hitInfo& info)
-{
-
-}
+//Color3f Render::sample_light(const hitInfo& info)
+//{
+//    auto u = rand1f();
+//    int n = lights.size();
+//    auto index = std::min(static_cast<int>(u * n), n - 1);
+//    auto invPdf = static_cast<float>(n);
+//    auto& light = lights[index];
+//
+//    // sample the light
+//    auto sample = light.Sample(*is);
+//    if (sample.pdf != 0.f && !scene.accel->has_intersection(Ray::between(is->point, sample.point)))
+//    {
+//        auto currentBeta = bsdf.Eval(sample.wi) * glm::dot(is->normal, sample.wi) / sample.pdf * invPdf; //(dist2 / cosine / primitive_.area());
+//        auto weight = power_heuristic(sample.pdf / invPdf, bsdf.Pdf(sample.wi));
+//        L += beta * currentBeta * sample.Le * weight;
+//    }
+//}

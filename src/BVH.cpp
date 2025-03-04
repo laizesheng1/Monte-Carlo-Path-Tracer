@@ -45,36 +45,61 @@ BVH_node* BVH::build(int l,int r)
 	return node;
 }
 
+//bool BVH::hit(Ray& ray, hitInfo& info)
+//{
+//	double pre_t = std::numeric_limits<double>::max();
+//	bool ishit = false;
+//	std::stack<BVH_node*> st;
+//	st.push(root);
+//	while(!st.empty())
+//	{
+//		BVH_node* node = st.top();
+//		st.pop();
+//		if (!node->box.Intersection(ray))
+//		{
+//			continue;
+//		}
+//		if (!node->left && !node->right)
+//		{
+//			for (std::shared_ptr tri : node->contain_tri)
+//			{
+//				if(tri->hit(ray, info, pre_t))
+//				{
+//					ishit = true;
+//				}
+//			}
+//		}
+//		else {
+//			//if(node->left)
+//				st.push(node->left);
+//			//if(node->right)
+//				st.push(node->right);
+//		}
+//	}
+//	return ishit;
+//}
+
 bool BVH::hit(Ray& ray, hitInfo& info)
 {
-	double pre_t = std::numeric_limits<double>::max();
-	bool ishit = false;
-	std::stack<BVH_node*> st;
-	st.push(root);
-	while(!st.empty())
+	double pre_t = ray.t2;
+	return root->hit(ray,info,pre_t);
+}
+
+bool BVH_node::hit(Ray& ray, hitInfo& info, double& pre_t)
+{
+	bool is_hit = false;
+	if (!this->box.Intersection(ray))
+		return false;
+	if (left)
+		is_hit |= left->hit(ray, info, pre_t);
+	if (right)
+		is_hit |= right->hit(ray, info, pre_t);
+	for (const auto& tri : this->contain_tri)
 	{
-		BVH_node* node = st.top();
-		st.pop();
-		if (!node->box.Intersection(ray))
+		if (tri->hit(ray, info, pre_t))
 		{
-			continue;
-		}
-		if (!node->left && !node->right)
-		{
-			for (std::shared_ptr tri : node->contain_tri)
-			{
-				if(tri->hit(ray, info, pre_t))
-				{
-					ishit = true;
-				}
-			}
-		}
-		else {
-			if(node->left)
-				st.push(node->left);
-			if(node->right)
-				st.push(node->right);
+			is_hit = true;
 		}
 	}
-	return ishit;
+	return is_hit;
 }

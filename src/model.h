@@ -22,6 +22,7 @@ class Texture
 {
 public:
     Texture(string filename);
+    Texture(Color3f c);
     vector<Color3f> image_color;
     Color3f get_color(const dvec2& uv);
 private:
@@ -30,7 +31,7 @@ private:
 
 struct Material
 {
-    dvec3 Kd = dvec3(1, 1, 1);    // diffuse, 反射光线系数，0 表示吸收所有光线
+    //dvec3 Kd = dvec3(1, 1, 1);    // diffuse, 反射光线系数，0 表示吸收所有光线
     dvec3 Ks = dvec3(0, 0, 0);    // specular, 高光反射系数
     dvec3 Tr = dvec3(0, 0, 0);    // 折射透明度, 0 表示不透明
     double Ns = 1;                // 高光反射参数

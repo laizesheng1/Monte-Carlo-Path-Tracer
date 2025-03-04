@@ -22,8 +22,17 @@ Texture::Texture(string filename)
     stbi_image_free(data);
 }
 
+Texture::Texture(Color3f c)
+{
+    image_color.push_back(c);
+}
+
 Color3f Texture::get_color(const dvec2& uv)
 {
+    if (image_color.size() == 1)
+    {
+        return image_color[0];
+    }
     double u = clamp01(glm::fract(uv.x));        //保证纹理坐标在0-1之间
     double v = clamp01(glm::fract(uv.y));
     int x = static_cast<int>(u * image_w);      //获取纹理坐标在图像对应的像素点坐标
@@ -252,7 +261,11 @@ void Model::load_material(string filename)
         
         // update material details
         if (regex_search(line, result, std::regex("\\s*Kd\\s+(\\S+)\\s+(\\S+)\\s+(\\S+)")))
-            materials.back().Kd = { stod(result[1]), stod(result[2]), stod(result[3]) };
+        {
+            Color3f kd = { stof(result[1]), stof(result[2]), stof(result[3]) };
+            materials.back().Map_Kd = std::make_shared<Texture>(kd);
+        }
+            //materials.back().Kd = { stod(result[1]), stod(result[2]), stod(result[3]) };
         else if (regex_search(line, result, std::regex("\\s*Ks\\s+(\\S+)\\s+(\\S+)\\s+(\\S+)")))
             materials.back().Ks = { stod(result[1]), stod(result[2]), stod(result[3]) };
         else if (regex_search(line, result, std::regex("\\s*Tr\\s+(\\S+)\\s+(\\S+)\\s+(\\S+)")))
