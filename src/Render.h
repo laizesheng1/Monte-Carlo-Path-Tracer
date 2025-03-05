@@ -6,6 +6,7 @@
 #include <memory>
 #include "AABB.h"
 #include "Scene.h"
+#include "Triangle.h"
 
 #define MAX_DEPTH 10
 class BVH;
@@ -19,23 +20,6 @@ struct hitInfo
 	dvec2 uv = dvec2(0);
 	bool front = false;
 	std::shared_ptr<Material> mtl = nullptr;
-};
-
-class Triangle
-{
-public:
-	dvec3 v[3],vn[3];
-	dvec2 uv[3];
-	dvec3 A, B;		//Bounding box min_vertex,max_vertex
-	std::shared_ptr<Material> mtl;
-	bool hit(const Ray& ray, hitInfo& info,double& t_max) const;		//get hit info && is intersection
-	AABB get_bbox() const;
-	dvec3 center() const;
-private:		
-	dvec3 interplote_Vertex(double b1, double b2) const;		//顶点插值
-	dvec3 interplote_Normal(double b1, double b2) const;
-	dvec2 interplote_Texture(double b1, double b2) const;
-	
 };
 
 struct Ray
@@ -60,16 +44,13 @@ class Render
 public:
 	Render(Model& m_model);
 	void render(Scene& scene);	
-	dmat4x4 pose = dmat4x4(1.0);
-	double scale = 1.0;
 private:
 	Model model;
 	Camera camera;
 	BVH* bvh;
-	vector<Triangle> triangles;
-	vector<Triangle> lights;
+	std::vector<std::shared_ptr<Triangle>> triangles;
+	std::vector<std::shared_ptr<Triangle>> lights;
 	void tranform_triangle();
-	bool isIntersect(Ray& ray, Triangle& tri);
 	void setCamera();
 	Color3f ray_tracing(Ray& ray,int depth);		//ray tracing
 	Ray cast_Ray(int x,int y);		//获取从摄像机到pixel的ray

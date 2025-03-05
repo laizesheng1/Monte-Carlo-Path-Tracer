@@ -3,11 +3,11 @@
 #include "Render.h"
 #include <thread>
 
-BVH::BVH(std::vector<Triangle> tris)
+BVH::BVH(std::vector<std::shared_ptr<Triangle>>& tris)
 {
 	for (auto& tri:tris)
 	{
-		triangles.push_back(make_shared<Triangle>(tri));
+		triangles.push_back(tri);
 	}
 	root=build(0, tris.size());
 }
@@ -15,6 +15,8 @@ BVH::BVH(std::vector<Triangle> tris)
 BVH_node* BVH::build(int l,int r)
 {
 	BVH_node* node = new BVH_node();
+	//if (l == r)
+	//	return nullptr;
 	AABB lrBox;
 	for (int i = l; i < r; i++)
 	{
@@ -29,9 +31,26 @@ BVH_node* BVH::build(int l,int r)
 		node->box = lrBox;
 		return node;
 	}
+	AABB mid_box;
+	for (int i = l; i < r; ++i) {
+		mid_box = mid_box.Union(triangles[i]->center());
+	}
+	int axis = mid_box.max_axis();
+	float mid_val = (mid_box.A[axis] + mid_box.B[axis]) / 2.0f;
+	auto mid = std::partition(triangles.begin() + l, triangles.begin() + r,			//按值划分、不排序、要均匀
+		[axis, mid_val](const std::shared_ptr<Triangle>& p)->bool
+		{
+			return p->center()[axis] < mid_val;
+		});
+	int mid_idx = static_cast<int>(mid - triangles.begin());
 
-	//split triangles
-	int split_axis = lrBox.max_axis();
+	if (mid_idx == l || mid_idx == r) {
+		mid_idx = (l + r) / 2;
+	}
+	node->left = build(l, mid_idx);
+	node->right = build(mid_idx, r);
+
+	/*int split_axis = lrBox.max_axis();
 	std::sort(triangles.begin() + l, triangles.begin() + r, [split_axis](const std::shared_ptr<Triangle>& a, const std::shared_ptr<Triangle>& b) {
 		AABB box_a = a->get_bbox();
 		AABB box_b = b->get_bbox();
@@ -41,12 +60,12 @@ BVH_node* BVH::build(int l,int r)
 		});
 	int mid = (l + r) / 2;
 	node->left = build(l, mid);
-	node->right = build(mid, r);
+	node->right = build(mid, r);*/
 	node->box = lrBox;
 	return node;
 }
 
-//bool BVH::hit(Ray& ray, hitInfo& info)
+//bool BVH::hit(Ray& ray, hitInfo& info)		//非递归慢0.5s
 //{
 //	double pre_t = std::numeric_limits<double>::max();
 //	bool ishit = false;
@@ -71,9 +90,9 @@ BVH_node* BVH::build(int l,int r)
 //			}
 //		}
 //		else {
-//			//if(node->left)
+//			if(node->left)
 //				st.push(node->left);
-//			//if(node->right)
+//			if(node->right)
 //				st.push(node->right);
 //		}
 //	}
@@ -82,25 +101,48 @@ BVH_node* BVH::build(int l,int r)
 
 bool BVH::hit(Ray& ray, hitInfo& info)
 {
-	double pre_t = ray.t2;
-	return root->hit(ray,info,pre_t);
+	return root->hit(ray,info);
 }
 
-bool BVH_node::hit(Ray& ray, hitInfo& info, double& pre_t)
+bool BVH_node::hit(Ray& ray, hitInfo& info)
 {
 	bool is_hit = false;
 	if (!this->box.Intersection(ray))
 		return false;
 	if (left)
-		is_hit |= left->hit(ray, info, pre_t);
+		is_hit |= left->hit(ray, info);
 	if (right)
-		is_hit |= right->hit(ray, info, pre_t);
+		is_hit |= right->hit(ray, info);
 	for (const auto& tri : this->contain_tri)
 	{
-		if (tri->hit(ray, info, pre_t))
+		if (tri->hit(ray, info))
 		{
+			ray.t2 = info.t;
 			is_hit = true;
 		}
 	}
 	return is_hit;
+}
+
+bool BVH::has_hit(Ray& ray)
+{
+	return root->has_hit(ray);
+}
+
+bool BVH_node::has_hit(Ray& ray)		//don't update info,
+{
+	if (!this->box.Intersection(ray))
+		return false;
+	if (left)
+		left->has_hit(ray);
+	if (right)
+		right->has_hit(ray);
+	for (const auto& tri : this->contain_tri)
+	{
+		if (tri->isIntersect(ray))
+		{
+			return true;
+		}
+	}
+	return false;
 }

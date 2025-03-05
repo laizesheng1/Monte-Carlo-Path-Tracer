@@ -2,72 +2,6 @@
 #include "BVH.h"
 #include "BSDF.h"
 
-AABB Triangle::get_bbox() const 
-{
-    /*AABB box;
-    for (int i = 0; i < 3; i++)
-    {
-        box=box.Union(v[i]);
-    }
-    return box;*/
-    return AABB(A, B);
-}
-
-dvec3 Triangle::center() const
-{
-    return (v[0] + v[1] + v[2]) / 3.0;
-}
-
-dvec3 Triangle::interplote_Vertex(double b1, double b2) const
-{
-    return (1 - b1 - b2) * v[0] + b1 * v[1] + b2 * v[2];
-}
-dvec3 Triangle::interplote_Normal(double b1, double b2) const
-{
-    return glm::normalize((1 - b1 - b2) * vn[0] + b1 * vn[1] + b2 * vn[2]);
-}
-dvec2 Triangle::interplote_Texture(double b1, double b2) const
-{
-    return (1 - b1 - b2) * uv[0] + b1 * uv[1] + b2 * uv[2];
-}
-
-bool Triangle::hit(const Ray& ray, hitInfo& info, double& t_max) const
-{
-    dvec3 edge1 = v[1] - v[0];
-    dvec3 edge2 = v[2] - v[0];
-    dvec3 h = cross(ray.direction, edge2);
-    double a = dot(edge1, h);
-    dvec3 s = ray.start - v[0];
-    double u = dot(s, h);
-    dvec3 q = cross(s, edge1);
-    double v = dot(ray.direction, q);
-    double t = dot(edge2, q);
-    double inv_a = 1.0 / a;
-    u *= inv_a;
-    v *= inv_a;
-    t *= inv_a;
-
-   if(t >= ray.t1 && t < ray.t2 && u >= 0 && v >= 0 && (1 - u - v) >= 0)
-   {
-       if(t<t_max)
-       {
-           info.t = t;
-           //info.point = ray.start + ray.direction * t;
-           info.point = interplote_Vertex(u, v);
-           //info.normal = normalize(cross(edge1, edge2));
-           info.normal = interplote_Normal(u, v);
-           info.front = dot(info.normal, ray.direction) < 0.0;     // 判断射线是否与正面相交
-           //info.wi = ray.start - info.point;  // 交点到射线起点的向量
-           info.wi = -ray.direction;
-           info.uv = interplote_Texture(u, v);
-           info.mtl = mtl;
-           t_max = t;
-           return true;
-       }
-   }
-   return false;
-}
-
 Render::Render(Model& m_model):model(m_model)
 {
     setCamera();
@@ -77,13 +11,9 @@ Render::Render(Model& m_model):model(m_model)
 
 void Render::tranform_triangle()
 {
-    // 清空现有的三角形数据
-    triangles.clear();
-
-    // 遍历模型中的所有面
     for (const auto& face : model.face)
     {
-        Triangle triangle= Triangle();
+        std::shared_ptr<Triangle> triangle= std::make_shared<Triangle> (Triangle());
         for (int i = 0; i < 3; ++i)
         {
             int v_idx = face[i][0];
@@ -94,77 +24,23 @@ void Render::tranform_triangle()
             dvec3 vertex = model.vertex[v_idx];
             dvec3 normal = model.normal[vn_idx];
             dvec2 uv = model.texture[vt_idx];
-
-            //// 应用缩放
-            //vertex *= scale;
-            //normal *= scale;
-            //// 应用平移（pose 是一个 4x4 的变换矩阵）
-            //dvec4 vertex_homogeneous = dvec4(vertex, 1.0);
-            //dvec4 normal_homogeneous = dvec4(normal, 0.0);
-            //vertex_homogeneous = pose * vertex_homogeneous;
-            //normal_homogeneous = pose * normal_homogeneous;
-
-            // 转换回 3D 向量
-            /*triangle.v[i] = dvec3(vertex_homogeneous);
-            triangle.vn[i] = dvec3(normal_homogeneous);*/
-            triangle.v[i] = vertex;
-            triangle.vn[i] = normal;
-            triangle.uv[i] = uv;
+            triangle->v[i] = vertex;
+            triangle->vn[i] = normal;
+            triangle->uv[i] = uv;
         }
 
         // 获取材质
         int material_idx = face[0][3];      // 每个面的材质索引在第一个顶点的 material_idx 中
-        triangle.mtl = std::make_shared<Material>(model.materials[material_idx]);
+        triangle->mtl = std::make_shared<Material>(model.materials[material_idx]);
 
         // 计算 A 和 B（最小和最大顶点）
-        triangle.A = min(triangle.v[0], min(triangle.v[1], triangle.v[2]));
-        triangle.B = max(triangle.v[0], max(triangle.v[1], triangle.v[2]));
+        triangle->A = min(triangle->v[0], min(triangle->v[1], triangle->v[2]));
+        triangle->B = max(triangle->v[0], max(triangle->v[1], triangle->v[2]));
         triangles.push_back(triangle);
 
-        if (glm::length(triangle.mtl->radiance) > 0.01)
+        if (glm::length(triangle->mtl->radiance) > 0.01)
             lights.push_back(triangle);        
     }
-}
-
-bool Render::isIntersect(Ray& ray,Triangle& tri) {
-
-    const double EPSILON = 1e-6; 
-    dvec3 v0 = tri.v[0];
-    dvec3 v1 = tri.v[1];
-    dvec3 v2 = tri.v[2];
-    dvec3 edge1 = v1 - v0;
-    dvec3 edge2 = v2 - v0;
-
-    // 计算光线方向与边2的叉积
-    dvec3 h = cross(ray.direction, edge2);
-    double det = dot(edge1, h);
-    if (fabs(det) < EPSILON)
-        return false;       // 光线与三角形平行，无交点
-    double invDet = 1.0 / det;
-
-    // 计算从起点到三角形第一个顶点的向量
-    dvec3 s = ray.start - v0;
-    // 计算 u 参数（重心坐标之一）
-    double u = invDet * dot(s, h);
-    if (u < 0.0 || u > 1.0)
-        return false; // u 超出范围，交点不在三角形内
-
-    // 计算 q 向量
-    dvec3 q = cross(s, edge1);
-
-    // 计算 v 参数（重心坐标之一）
-    double v = invDet * dot(ray.direction, q);
-    if (v < 0.0 || u + v > 1.0)
-        return false; // v 超出范围，交点不在三角形内
-
-    // 计算 t 参数（光线参数）
-    double t = invDet * dot(edge2, q);
-
-    // 检查 t 是否在光线的有效范围内
-    if (t < ray.t1 || t > ray.t2)
-        return false; // 交点不在光线范围内
-
-    return true; // 光线与三角形相交
 }
 
 void Render::setCamera()
@@ -179,7 +55,7 @@ void Render::setCamera()
 
 void Render::render(Scene& scene)
 {
-    int w = model.camerainfo.width, h = model.camerainfo.height;
+    int w = camera.w, h = camera.h;
     int cnt = w * h;
 #pragma omp parallel for
     for (int i = 0; i < cnt; i++)
@@ -226,9 +102,11 @@ Color3f Render::ray_tracing(Ray& ray, int depth)
     }
     Scatterinfo scat_info;
     auto& mat = info.mtl;
+    auto L = sample_light(info);
+
     BSDF bsdf(info);
     scat_info = bsdf.Sample();
-    
+       
     //BRDF brdf;
     //if (mat->Ni > 1) {
     //    scat_info = brdf.specular_reflection_and_transmission(info);
@@ -239,9 +117,10 @@ Color3f Render::ray_tracing(Ray& ray, int depth)
     //else
     //    scat_info = brdf.lambertian_diffuse(info);
 
-    
+    if (glm::length(scat_info.wo) < 0.00001f)
+        return vec3(0);
     Ray new_ray(info.point, scat_info.wo);
-    return scat_info.f*ray_tracing(new_ray, depth + 1);
+    return L+scat_info.f * std::fabs(glm::dot(vec3(info.normal), scat_info.wo)) * ray_tracing(new_ray, depth + 1) / scat_info.pdf;
 }
 
 Color3f Render::ray_tracing(Ray& ray)
@@ -290,20 +169,26 @@ Color3f Render::ray_tracing(Ray& ray)
     return L;
 }
 
-//Color3f Render::sample_light(const hitInfo& info)
-//{
-//    auto u = rand1f();
-//    int n = lights.size();
-//    auto index = std::min(static_cast<int>(u * n), n - 1);
-//    auto invPdf = static_cast<float>(n);
-//    auto& light = lights[index];
-//
-//    // sample the light
-//    auto sample = light.Sample(*is);
-//    if (sample.pdf != 0.f && !scene.accel->has_intersection(Ray::between(is->point, sample.point)))
-//    {
-//        auto currentBeta = bsdf.Eval(sample.wi) * glm::dot(is->normal, sample.wi) / sample.pdf * invPdf; //(dist2 / cosine / primitive_.area());
-//        auto weight = power_heuristic(sample.pdf / invPdf, bsdf.Pdf(sample.wi));
-//        L += beta * currentBeta * sample.Le * weight;
-//    }
-//}
+Color3f Render::sample_light(const hitInfo& info)
+{
+    int cnt = lights.size();
+    int idx = std::min(static_cast<int>(rand1f() * cnt), cnt - 1);
+    auto light = lights[idx];
+    Point2f sample_uv = light->sample_Point2();
+    vec3 point = light->interplote_Vertex(sample_uv.x, sample_uv.y);
+    vec3 normal = light->interplote_Normal(sample_uv.x, sample_uv.y);
+    vec3 d = point - vec3(info.point);
+    vec3 dir = glm::normalize(d);
+    float d2 = glm::dot(d, d);
+    float cos = glm::dot(-dir, normal);
+    float pdf = d2 / cos / light->area();
+
+    float t = glm::length(d);
+    Ray r(info.point, dir);
+    r.t2 = t;
+    hitInfo tmp;
+    if (!bvh->hit(r,tmp)) {
+        return vec3(light->mtl->radiance)*info.mtl->Map_Kd->get_color(info.uv)*glm::dot(vec3(info.normal),dir) / pdf;
+    }
+    return vec3(0);
+}
