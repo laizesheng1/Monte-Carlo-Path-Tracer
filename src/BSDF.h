@@ -71,16 +71,51 @@ private:
     vec3 m_wo;
 };
 
+class specular_reflection :public Scatter
+{
+public:
+    specular_reflection(const vec3& wo) : Scatter(Color3f(1)), m_wo(wo) {}
+    virtual Color3f Fx(const vec3& wi) const override { return Color3f(0); }
+    virtual Scatterinfo Sample() const override;
+    virtual float Pdf(const vec3& wi) const override { return 0.f; }
+private:
+    vec3 m_wo;
+};
+
+class specular_reflection_transmission : public Scatter
+{
+public:
+    specular_reflection_transmission(const vec3& wo,const float& ni)
+        : Scatter(Color3f(1)), m_wo(wo), Ni(ni) {}
+    virtual Color3f Fx(const vec3& wi) const override { return Color3f(0); }
+    virtual Scatterinfo Sample() const override;
+    virtual float Pdf(const vec3& wi) const override { return 0.f; }
+private:
+    vec3 m_wo;
+    float Ni;
+};
+
 class BSDF
 {
 public:
     BSDF(hitInfo& info);
-    BSDF() {}
+    Color3f Fx(const vec3& wi) const;
+    Scatterinfo Sample() const;
+    float Pdf(const vec3& wi) const;
+    void get_sample_weight();
+    void energy_conservation();
+    std::vector<std::shared_ptr<Scatter>> bxdfs;
+private:
+    coordiantetransform onb;
+};
+
+class BRDF
+{
+public:
+    BRDF() {}
     Scatterinfo lambertian_diffuse(hitInfo& info);
     Scatterinfo blinn_phong_specular(hitInfo& info);
     Scatterinfo specular_reflection_and_transmission(hitInfo& info);
-    std::shared_ptr<Scatter> sca;
-private:
 
 };
 #endif

@@ -1,6 +1,7 @@
 #include "BVH.h"
 #include "stack"
 #include "Render.h"
+#include <thread>
 
 BVH::BVH(std::vector<Triangle> tris)
 {

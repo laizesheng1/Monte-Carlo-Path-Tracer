@@ -4,13 +4,13 @@
 
 AABB Triangle::get_bbox() const 
 {
-    AABB box;
+    /*AABB box;
     for (int i = 0; i < 3; i++)
     {
         box=box.Union(v[i]);
     }
-    return box;
-    //return AABB(A, B);
+    return box;*/
+    return AABB(A, B);
 }
 
 dvec3 Triangle::center() const
@@ -226,18 +226,18 @@ Color3f Render::ray_tracing(Ray& ray, int depth)
     }
     Scatterinfo scat_info;
     auto& mat = info.mtl;
-    //BSDF bsdf(info);
-    //scat_info=bsdf.sca->Sample();
+    BSDF bsdf(info);
+    scat_info = bsdf.Sample();
     
-    BSDF bsdf;
-    if (mat->Ni > 1) {
-        scat_info = bsdf.specular_reflection_and_transmission(info);
-    }
-    else if (glm::length(mat->Ks)) {
-        scat_info = bsdf.blinn_phong_specular(info);
-    }
-    else
-        scat_info = bsdf.lambertian_diffuse(info);
+    //BRDF brdf;
+    //if (mat->Ni > 1) {
+    //    scat_info = brdf.specular_reflection_and_transmission(info);
+    //}
+    //else if (glm::length(mat->Ks)) {
+    //    scat_info = brdf.blinn_phong_specular(info);
+    //}
+    //else
+    //    scat_info = brdf.lambertian_diffuse(info);
 
     
     Ray new_ray(info.point, scat_info.wo);
@@ -259,7 +259,7 @@ Color3f Render::ray_tracing(Ray& ray)
         auto& mat = info.mtl;
         BSDF bsdf(info);
         //
-        scat_info = bsdf.sca->Sample();
+        scat_info = bsdf.Sample();
         if (scat_info.pdf == 0.f)
             break;
         Ray newray(info.point, scat_info.wo);
