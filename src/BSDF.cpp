@@ -138,6 +138,7 @@ BSDF::BSDF(hitInfo& info)
     if (mat->Ni > 1)       //Õ∏…‰transmission
     {
         bxdfs.push_back(std::make_shared<specular_reflection_transmission>(localwi, mat->Ni));
+        isall = true;
     }
     else if (glm::length(mat->Ks) > 0.01)      //∑¥…‰/specular
     {

@@ -62,8 +62,8 @@ void Render::render(Scene& scene)
     {
         int x = i % w, y = i / w;
         Ray ray = cast_Ray(x, y);
-        Color3f color = ray_tracing(ray, 0);
-        //Color3f color = ray_tracing(ray);
+        //Color3f color = ray_tracing(ray, 0);
+        Color3f color = ray_tracing(ray);
         scene.set_Pixel({ x,y }, color);
     }
 }
@@ -134,19 +134,26 @@ Color3f Render::ray_tracing(Ray& ray)
     {
         if (!bvh->hit(ray, info))        
             break;
-        Scatterinfo scat_info;
         auto& mat = info.mtl;
+        if (bounces == 0 && glm::length(mat->radiance) > 0.0001)    //直接光照
+            L += vec3(mat->radiance);
+        L += sample_light(info);        //光源采样
         BSDF bsdf(info);
-        //
+        //BSDF采样
+        Scatterinfo scat_info;
         scat_info = bsdf.Sample();
         if (scat_info.pdf == 0.f)
             break;
-        Ray newray(info.point, scat_info.wo);
-        hitInfo nextInfo;        
-        if (!bvh->hit(newray, nextInfo))
-            break;
         beta *= scat_info.f * std::abs(glm::dot(vec3(info.normal), scat_info.wo)) / scat_info.pdf;
 
+        //new ray
+        Ray newray(info.point, scat_info.wo);
+        hitInfo nextInfo;
+        ray = newray;
+        if (nextInfo.front)
+        {
+
+        }
         // sample contribution
         //auto light = nextIsec->primitive->GetAreaLight();
         //auto lightradiance = nextInfo.mtl->radiance;
@@ -181,14 +188,14 @@ Color3f Render::sample_light(const hitInfo& info)
     vec3 dir = glm::normalize(d);
     float d2 = glm::dot(d, d);
     float cos = glm::dot(-dir, normal);
-    float pdf = d2 / cos / light->area();
+    float pdf = d2 / cos / light->area() / cnt;
 
     float t = glm::length(d);
     Ray r(info.point, dir);
     r.t2 = t;
     hitInfo tmp;
     if (!bvh->hit(r,tmp)) {
-        return vec3(light->mtl->radiance)*info.mtl->Map_Kd->get_color(info.uv)*glm::dot(vec3(info.normal),dir) / pdf;
+        return vec3(light->mtl->radiance)*info.mtl->Map_Kd->get_color(info.uv)*std::fabs(glm::dot(vec3(info.normal),dir)) / pdf;
     }
     return vec3(0);
 }
