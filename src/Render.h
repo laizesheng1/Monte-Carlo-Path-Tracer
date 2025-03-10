@@ -39,6 +39,15 @@ struct Camera
 	int w, h;
 };
 
+struct lightinfo
+{
+	std::shared_ptr<Triangle> light;
+	vec3 wo;
+	vec3 f;
+	float pdf;
+	Ray ray;
+};
+
 class Render
 {
 public:
@@ -55,7 +64,8 @@ private:
 	Color3f ray_tracing(Ray& ray,int depth);		//ray tracing
 	Ray cast_Ray(int x,int y);		//获取从摄像机到pixel的ray
 	Color3f ray_tracing(Ray& ray);
-	Color3f sample_light(const hitInfo& info);
+	Color3f sample_light(hitInfo& info);
+	lightinfo sample(hitInfo& info);
 };
 
 #endif

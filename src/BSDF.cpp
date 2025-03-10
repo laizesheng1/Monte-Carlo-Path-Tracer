@@ -3,24 +3,26 @@
 
 vec3 Diffuse::Fx(const vec3& wi) const
 {
-    return (wi.z < 0 || m_wo.z < 0) ? vec3(0) : (reflect / PI);
+    //return (wi.z < 0 || m_wo.z < 0) ? vec3(0) : (reflect / PI);
+    return reflect / PI;
 }
 
 Scatterinfo Diffuse::Sample() const
 {    
-    if (m_wo.z < 0.f) {
-        return Scatterinfo(vec3(0), vec3(0), 0.f);
-    }
+    //if (m_wo.z < 0.f) {
+    //    return Scatterinfo(vec3(0), vec3(0), 0.f);
+    //}
+    vec3 f = reflect / PI;
     float phi = rand1f() * 2 * PI;
     float theta = 0.5f * acos(1 - 2 * rand1f());
-    vec3 v(
+    vec3 dir(
         sin(theta) * cos(phi),
         sin(theta) * sin(phi),
         cos(theta)
     );
-    float pdf = std::abs(v.z) / PI;
-    vec3 f = Fx(v);
-    return Scatterinfo(v, f, pdf);
+    float pdf = std::abs(dir.z) / PI;
+    //vec3 f = Fx(dir);
+    return Scatterinfo(dir, f, pdf);
 }
 
 float Diffuse::Pdf(const vec3& wi) const
@@ -77,9 +79,9 @@ Scatterinfo specular_reflection::Sample() const
 {
     if(m_wo.z<0.f)
         return Scatterinfo(vec3(0), vec3(0), 0.f);
-    auto R = vec3(-m_wo.x, -m_wo.y, m_wo.z);
+    auto wo = vec3(-m_wo.x, -m_wo.y, m_wo.z);
     auto f = Color3f(1.f) / m_wo.z;
-    return { R,f, 1.f };
+    return { wo,f, 1.f };
 }
 
 Scatterinfo specular_reflection_transmission::Sample() const
@@ -105,7 +107,6 @@ Scatterinfo specular_reflection_transmission::Sample() const
     }
 
     Scatterinfo info;
-    //sample.isDelta = true;
     if (rand1f() < fresnel)
     {
         auto wo = vec3(-m_wo.x, -m_wo.y, m_wo.z);
@@ -138,11 +139,15 @@ BSDF::BSDF(hitInfo& info)
     if (mat->Ni > 1)       //透射transmission
     {
         bxdfs.push_back(std::make_shared<specular_reflection_transmission>(localwi, mat->Ni));
-        isall = true;
+        isallType = true;
     }
     else if (glm::length(mat->Ks) > 0.01)      //反射/specular
     {
-        bxdfs.push_back(std::make_shared<Specular>(ks, ns, localwi));
+        if(ns>=10000)
+        {
+            bxdfs.push_back(std::make_shared<specular_reflection>(localwi));        //完全镜面反射
+        }
+        else bxdfs.push_back(std::make_shared<Specular>(ks, ns, localwi)); 
     }
     bxdfs.push_back(std::make_shared<Diffuse>(kd, localwi));
     get_sample_weight();
@@ -183,6 +188,8 @@ Scatterinfo BSDF::Sample() const
             continue;
         sample.f += bxdfs[i]->Fx(sample.wo);
         sample.pdf += bxdfs[i]->Pdf(sample.wo) * bxdfs[i]->weight;
+        //sample.f += bxdfs[i]->Sample().f;
+        //sample.pdf += bxdfs[i]->Sample().pdf * bxdfs[i]->weight;
     }
     sample.wo = onb.localToworld(sample.wo);
     return sample;
@@ -195,6 +202,7 @@ float BSDF::Pdf(const vec3& wi) const
     for (auto bxdf : bxdfs)
     {
         ret += bxdf->Pdf(wo) * bxdf->weight;
+        //ret += bxdf->Sample().pdf * bxdf->weight;
     }
     return ret;
 }

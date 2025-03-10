@@ -52,3 +52,9 @@ inline float calculateFresnelDielectric(float incidentIOR, float transmittedIOR,
         (incidentIOR * cosIncidentAngle + transmittedIOR * cosTransmittedAngle);
     return 0.5f * (parallelReflectance * parallelReflectance + perpendicularReflectance * perpendicularReflectance);
 }
+
+inline float power_heuristic(float pdf1, float pdf2)
+{
+    auto sum = pdf1 * pdf1 + pdf2 * pdf2;
+    return sum == 0.f ? 0.f : pdf1 * pdf1 / sum;
+}

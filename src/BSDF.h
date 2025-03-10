@@ -105,7 +105,7 @@ public:
     void get_sample_weight();
     void energy_conservation();
     std::vector<std::shared_ptr<Scatter>> bxdfs;
-    bool isall = false;
+    bool isallType = false;
 private:
     coordiantetransform onb;
 };

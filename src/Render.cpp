@@ -126,43 +126,49 @@ Color3f Render::ray_tracing(Ray& ray, int depth)
 Color3f Render::ray_tracing(Ray& ray)
 {
     Color3f L = Color3f(0.f);
-
     Color3f beta(1.f);
     hitInfo info;
-
     for (int bounces = 0; ; bounces++)
     {
-        if (!bvh->hit(ray, info))        
+        if (!bvh->hit(ray, info))
             break;
         auto& mat = info.mtl;
         if (bounces == 0 && glm::length(mat->radiance) > 0.0001)    //直接光照
             L += vec3(mat->radiance);
-        L += sample_light(info);        //光源采样
         BSDF bsdf(info);
+        auto lightsample = sample(info);
+        if(lightsample.pdf!=0&&!bvh->has_hit(lightsample.ray))
+        {
+            float n = static_cast<float>(lights.size());
+            auto currentBeta = bsdf.Fx(lightsample.wo) * glm::dot(vec3(info.normal), lightsample.wo) / lightsample.pdf * n;
+            auto weight = power_heuristic(lightsample.pdf / n, bsdf.Pdf(lightsample.wo));
+            L += beta * currentBeta * lightsample.f * weight;
+        }
+
         //BSDF采样
         Scatterinfo scat_info;
         scat_info = bsdf.Sample();
         if (scat_info.pdf == 0.f)
-            break;
-        beta *= scat_info.f * std::abs(glm::dot(vec3(info.normal), scat_info.wo)) / scat_info.pdf;
-
+            break;       
         //new ray
         Ray newray(info.point, scat_info.wo);
         hitInfo nextInfo;
-        ray = newray;
-        if (nextInfo.front)
-        {
+        
+        if (!bvh->hit(newray, nextInfo))
+            break;
 
-        }
-        // sample contribution
-        //auto light = nextIsec->primitive->GetAreaLight();
-        //auto lightradiance = nextInfo.mtl->radiance;
-        /*if (light && !nextIsec->backface)
-        {
-            auto lightPdf = light->Pdf(info.point, nextIsec->point, nextIsec->normal) / float(lights.size());
-            auto weight = power_heuristic(scat_info.pdf, lightPdf);
-            L += beta * light->radiance * weight;            
-        }*/
+        beta *= scat_info.f * std::abs(glm::dot(vec3(info.normal), scat_info.wo)) / scat_info.pdf;
+
+        //if (nextInfo.front)      //如果newray从光源出发
+        //{
+        //    auto d = info.point - nextInfo.point;
+        //    auto dist2 = glm::length(d)* glm::length(d);
+        //    auto cosine = glm::dot(glm::normalize(d), nextInfo.normal);
+        //    auto lightPdf = dist2 / cosine / lightsample.light->area() / float(lights.size());     //除info.point所在light的面积
+
+        //    auto weight = power_heuristic(scat_info.pdf, lightPdf);
+        //    L += beta * vec3(lightsample.f)* weight;
+        //}
         info = nextInfo;
         // Russian roulette
         if (bounces > 3)
@@ -176,7 +182,32 @@ Color3f Render::ray_tracing(Ray& ray)
     return L;
 }
 
-Color3f Render::sample_light(const hitInfo& info)
+Color3f Render::sample_light(hitInfo& info)
+{
+    
+    int cnt = lights.size();
+    int idx = std::min(static_cast<int>(rand1f() * cnt), cnt - 1);
+    auto light = lights[idx];
+    Point2f sample_uv = light->sample_Point2();
+    vec3 point = light->interplote_Vertex(sample_uv.x, sample_uv.y);
+    vec3 normal = light->interplote_Normal(sample_uv.x, sample_uv.y);
+    vec3 d = point - vec3(info.point);
+    vec3 dir = glm::normalize(d);
+    float d2 = glm::dot(d, d);
+    float cos = glm::dot(-dir, normal);
+    float pdf = d2 / cos / light->area() / cnt;    
+
+    float t = glm::length(d);
+    Ray r(info.point, dir);
+    r.t2 = t;
+    hitInfo tmp;
+    if (!bvh->has_hit(r)) {
+        return vec3(light->mtl->radiance) * info.mtl->Map_Kd->get_color(info.uv) * std::fabs(glm::dot(vec3(info.normal), dir)) / pdf ;
+    }
+    return vec3(0);
+}
+
+lightinfo Render::sample(hitInfo& info)
 {
     int cnt = lights.size();
     int idx = std::min(static_cast<int>(rand1f() * cnt), cnt - 1);
@@ -189,13 +220,9 @@ Color3f Render::sample_light(const hitInfo& info)
     float d2 = glm::dot(d, d);
     float cos = glm::dot(-dir, normal);
     float pdf = d2 / cos / light->area() / cnt;
-
+    vec3 f = vec3(light->mtl->radiance);
     float t = glm::length(d);
     Ray r(info.point, dir);
     r.t2 = t;
-    hitInfo tmp;
-    if (!bvh->hit(r,tmp)) {
-        return vec3(light->mtl->radiance)*info.mtl->Map_Kd->get_color(info.uv)*std::fabs(glm::dot(vec3(info.normal),dir)) / pdf;
-    }
-    return vec3(0);
+    return { light,dir,f,pdf ,r};
 }
