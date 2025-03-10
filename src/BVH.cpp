@@ -49,18 +49,6 @@ BVH_node* BVH::build(int l,int r)
 	}
 	node->left = build(l, mid_idx);
 	node->right = build(mid_idx, r);
-
-	/*int split_axis = lrBox.max_axis();
-	std::sort(triangles.begin() + l, triangles.begin() + r, [split_axis](const std::shared_ptr<Triangle>& a, const std::shared_ptr<Triangle>& b) {
-		AABB box_a = a->get_bbox();
-		AABB box_b = b->get_bbox();
-		double center_a = (box_a.A[split_axis] + box_a.B[split_axis]) / 2.0;
-		double center_b = (box_b.A[split_axis] + box_b.B[split_axis]) / 2.0;
-		return center_a < center_b;
-		});
-	int mid = (l + r) / 2;
-	node->left = build(l, mid);
-	node->right = build(mid, r);*/
 	node->box = lrBox;
 	return node;
 }
@@ -133,10 +121,10 @@ bool BVH_node::has_hit(Ray& ray)		//don't update info,
 {
 	if (!this->box.Intersection(ray))
 		return false;
-	if (left)
-		left->has_hit(ray);
-	if (right)
-		right->has_hit(ray);
+	if (left && left->has_hit(ray))
+		return true;
+	if (right&& right->has_hit(ray))
+		return true;
 	for (const auto& tri : this->contain_tri)
 	{
 		if (tri->isIntersect(ray))
