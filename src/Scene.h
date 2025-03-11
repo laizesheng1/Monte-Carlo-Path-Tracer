@@ -18,7 +18,7 @@ public:
 	Scene(int width, int heigh);
 	void set_Pixel(const Point2i& location, Color3f& color);
 	const Color3b* getPixelsColor();
-	void save_image(int frame);
+	void save_image(int frame, std::string filename);
 private:
 	int w, h;
 	std::unique_ptr<Pixels[]> m_Pixels;

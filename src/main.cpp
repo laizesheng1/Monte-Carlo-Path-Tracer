@@ -3,12 +3,14 @@
 
 int main(int argc, char** argv)
 {
-	//Model model("../example-scenes-cg24/bathroom2/bathroom2.obj");
-	//Model model("../example-scenes-cg24/cornell-box/cornell-box.obj");
-	//Model model("../example-scenes-cg24/veach-mis/veach-mis.obj");
-	//Model model("D:/Users/laizesheng/Desktop/example-scenes-cg24/veach-mis/veach-mis.obj");
-	//Model model("D:/Users/laizesheng/Desktop/example-scenes-cg24/cornell-box/cornell-box.obj");
-	Model model("D:/Users/laizesheng/Desktop/example-scenes-cg24/bathroom2/bathroom2.obj");
+	string filename;
+	filename = "../example-scenes-cg24/bathroom2/bathroom2.obj";
+	//filename = "../example-scenes-cg24/veach-mis/veach-mis.obj";
+	//filename = "../example-scenes-cg24/cornell-box/cornell-box.obj";
+	//filename = "D:/Users/laizesheng/Desktop/example-scenes-cg24/veach-mis/veach-mis.obj";
+	//filename = "D:/Users/laizesheng/Desktop/example-scenes-cg24/cornell-box/cornell-box.obj";
+	//filename = "D:/Users/laizesheng/Desktop/example-scenes-cg24/bathroom2/bathroom2.obj";
+	Model model(filename);
 	cout << model.face.size() << " " << model.normal.size() << " " << model.vertex.size() << endl;
 	int w = model.camerainfo.width, h = model.camerainfo.height;
 	Scene scene(w, h);
@@ -24,12 +26,13 @@ int main(int argc, char** argv)
 		start_time = clock();
 		render.render(scene);
 		end_time = clock();
-		//scene.camera.spp++;
 		glDrawPixels(w, h, GL_RGB, GL_UNSIGNED_BYTE, scene.getPixelsColor());
 		std::cout << "frame: " << frame++ << "    frame cost: " << static_cast<double>(end_time - start_time) / CLOCKS_PER_SEC << "s\n";
 		glfwSwapBuffers(window);
 		glfwPollEvents();
+		/*if ((frame & (frame - 1)) == 0)
+			scene.save_image(frame, filename);*/
 	}
-	scene.save_image(frame);
+	scene.save_image(frame, filename);
 	glfwTerminate();
 }

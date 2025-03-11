@@ -62,8 +62,8 @@ void Render::render(Scene& scene)
     {
         int x = i % w, y = i / w;
         Ray ray = cast_Ray(x, y);
-        //Color3f color = ray_tracing(ray, 0);
-        Color3f color = ray_tracing(ray);
+        Color3f color = ray_tracing(ray, 0);
+        //Color3f color = ray_tracing(ray);
         scene.set_Pixel({ x,y }, color);
     }
 }
@@ -139,10 +139,11 @@ Color3f Render::ray_tracing(Ray& ray)
         auto lightsample = sample(info);
         if (lightsample.pdf != 0 && !bvh->has_hit(lightsample.ray))
         {
+            
             float cos_theta = std::fabs(glm::dot(vec3(info.normal), lightsample.wo));
             float weight = power_heuristic(lightsample.pdf/ float(lights.size()), bsdf.Pdf(lightsample.wo));  // 平衡启发式重要性采样
             L += beta * vec3(lightsample.light->mtl->radiance) * bsdf.Fx(lightsample.wo) * cos_theta / lightsample.pdf * weight * float(lights.size());
-            //L += vec3(lightsample.light->mtl->radiance) * info.mtl->Map_Kd->get_color(info.uv) *beta * std::fabs(glm::dot(vec3(info.normal), lightsample.wo)) / lightsample.pdf;
+            //L += vec3(lightsample.light->mtl->radiance) * info.mtl->Map_Kd->get_color(info.uv) *beta * std::fabs(glm::dot(vec3(info.normal), lightsample.wo)) / lightsample.pdf;    //跑Cornell-box
         }
 
         //BSDF采样
@@ -155,15 +156,17 @@ Color3f Render::ray_tracing(Ray& ray)
         float cos_theta = std::fabs(glm::dot(vec3(info.normal), scat_info.wo));
         beta *= scat_info.f * cos_theta / scat_info.pdf;
         
-        //if (nextInfo.front)      //如果newray从光源出发
+        //hitInfo nextInfo;
+        //if (!bvh->hit(new_ray, nextInfo))
+        //    break;
+        //if (glm::length(nextInfo.mtl->radiance)&&nextInfo.front)      //如果newray从光源出发
         //{
         //    auto d = info.point - nextInfo.point;
         //    auto dist2 = glm::length(d)* glm::length(d);
         //    auto cosine = glm::dot(glm::normalize(d), nextInfo.normal);
-        //    auto lightPdf = dist2 / cosine / lightsample.light->area() / float(lights.size());     //除info.point所在light的面积
-
+        //    auto lightPdf = dist2 / cosine / float(lights.size());     //除info.point所在light的面积
         //    auto weight = power_heuristic(scat_info.pdf, lightPdf);
-        //    L += beta * vec3(lightsample.f)* weight;
+        //    L += beta * vec3(nextInfo.mtl->radiance)* weight;
         //}
         // Russian roulette
         if (bounces > 3)

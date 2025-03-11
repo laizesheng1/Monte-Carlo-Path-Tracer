@@ -9,9 +9,9 @@ vec3 Diffuse::Fx(const vec3& wi) const
 
 Scatterinfo Diffuse::Sample() const
 {    
-    //if (m_wo.z < 0.f) {
-    //    return Scatterinfo(vec3(0), vec3(0), 0.f);
-    //}
+/*    if (m_wo.z < 0.f) {
+        return Scatterinfo(vec3(0), vec3(0), 0.f);
+    } */   
     vec3 f = reflect / PI;
     float phi = rand1f() * 2 * PI;
     float theta = 0.5f * acos(1 - 2 * rand1f());
@@ -20,8 +20,8 @@ Scatterinfo Diffuse::Sample() const
         sin(theta) * sin(phi),
         cos(theta)
     );
-    float pdf = std::abs(dir.z) / PI;
     //vec3 f = Fx(dir);
+    float pdf = std::abs(dir.z) / PI;
     return Scatterinfo(dir, f, pdf);
 }
 
