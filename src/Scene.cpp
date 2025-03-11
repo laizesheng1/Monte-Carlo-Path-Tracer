@@ -35,5 +35,19 @@ const Color3b* Scene::getPixelsColor()
 void Scene::save_image(int frame)
 {
     std::string file = "../results/" + std::to_string(frame) + ".png";
-    stbi_write_png(file.c_str(), w, h, 3, getPixelsColor(), 0);
+    std::vector<Color3b> flippedPixels(w * h);
+    const Color3b* pixels = getPixelsColor();
+    for (int y = 0; y < h; y++) {
+        for (int x = 0; x < w; x++) {
+            int originalIndex = y * w + x;
+            int flippedIndex = (h - 1 - y) * w + x;
+            flippedPixels[flippedIndex] = pixels[originalIndex];
+        }
+    }
+    if (stbi_write_png(file.c_str(), w, h, 3, flippedPixels.data(), w * 3)) {
+        std::cout << "Image saved successfully: " << file << std::endl;
+    }
+    else {
+        std::cerr << "Failed to save image: " << file << std::endl;
+    }
 }

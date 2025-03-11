@@ -133,16 +133,16 @@ Color3f Render::ray_tracing(Ray& ray)
         if (!bvh->hit(ray, info))
             break;
         auto& mat = info.mtl;
-        if (bounces == 0 && glm::length(mat->radiance) > 0.0001)    //直接光照
+        if (bounces == 0 && glm::length(mat->radiance) > 0.0001)   //直接光照
             L += vec3(mat->radiance);
         BSDF bsdf(info);
         auto lightsample = sample(info);
-        if(lightsample.pdf!=0&&!bvh->has_hit(lightsample.ray))
+        if (lightsample.pdf != 0 && !bvh->has_hit(lightsample.ray))
         {
-            float n = static_cast<float>(lights.size());
-            auto currentBeta = bsdf.Fx(lightsample.wo) * glm::dot(vec3(info.normal), lightsample.wo) / lightsample.pdf * n;
-            auto weight = power_heuristic(lightsample.pdf / n, bsdf.Pdf(lightsample.wo));
-            L += beta * currentBeta * lightsample.f * weight;
+            float cos_theta = std::fabs(glm::dot(vec3(info.normal), lightsample.wo));
+            float weight = power_heuristic(lightsample.pdf/ float(lights.size()), bsdf.Pdf(lightsample.wo));  // 平衡启发式重要性采样
+            L += beta * vec3(lightsample.light->mtl->radiance) * bsdf.Fx(lightsample.wo) * cos_theta / lightsample.pdf * weight * float(lights.size());
+            //L += vec3(lightsample.light->mtl->radiance) * info.mtl->Map_Kd->get_color(info.uv) *beta * std::fabs(glm::dot(vec3(info.normal), lightsample.wo)) / lightsample.pdf;
         }
 
         //BSDF采样
@@ -151,14 +151,10 @@ Color3f Render::ray_tracing(Ray& ray)
         if (scat_info.pdf == 0.f)
             break;       
         //new ray
-        Ray newray(info.point, scat_info.wo);
-        hitInfo nextInfo;
+        Ray new_ray(info.point, scat_info.wo);
+        float cos_theta = std::fabs(glm::dot(vec3(info.normal), scat_info.wo));
+        beta *= scat_info.f * cos_theta / scat_info.pdf;
         
-        if (!bvh->hit(newray, nextInfo))
-            break;
-
-        beta *= scat_info.f * std::abs(glm::dot(vec3(info.normal), scat_info.wo)) / scat_info.pdf;
-
         //if (nextInfo.front)      //如果newray从光源出发
         //{
         //    auto d = info.point - nextInfo.point;
@@ -169,7 +165,6 @@ Color3f Render::ray_tracing(Ray& ray)
         //    auto weight = power_heuristic(scat_info.pdf, lightPdf);
         //    L += beta * vec3(lightsample.f)* weight;
         //}
-        info = nextInfo;
         // Russian roulette
         if (bounces > 3)
         {
@@ -178,13 +173,13 @@ Color3f Render::ray_tracing(Ray& ray)
                 break;
             beta /= q;
         }
+        ray = new_ray;
     }
     return L;
 }
 
 Color3f Render::sample_light(hitInfo& info)
 {
-    
     int cnt = lights.size();
     int idx = std::min(static_cast<int>(rand1f() * cnt), cnt - 1);
     auto light = lights[idx];
@@ -195,14 +190,13 @@ Color3f Render::sample_light(hitInfo& info)
     vec3 dir = glm::normalize(d);
     float d2 = glm::dot(d, d);
     float cos = glm::dot(-dir, normal);
-    float pdf = d2 / cos / light->area() / cnt;    
+    float pdf = d2 / cos / light->area() ;
 
     float t = glm::length(d);
     Ray r(info.point, dir);
     r.t2 = t;
-    hitInfo tmp;
     if (!bvh->has_hit(r)) {
-        return vec3(light->mtl->radiance) * info.mtl->Map_Kd->get_color(info.uv) * std::fabs(glm::dot(vec3(info.normal), dir)) / pdf ;
+        return vec3(light->mtl->radiance) * info.mtl->Map_Kd->get_color(info.uv) * std::fabs(glm::dot(vec3(info.normal), dir)) / pdf / 2.0f;
     }
     return vec3(0);
 }
@@ -219,7 +213,7 @@ lightinfo Render::sample(hitInfo& info)
     vec3 dir = glm::normalize(d);
     float d2 = glm::dot(d, d);
     float cos = glm::dot(-dir, normal);
-    float pdf = d2 / cos / light->area() / cnt;
+    float pdf = d2 / cos / light->area();
     vec3 f = vec3(light->mtl->radiance);
     float t = glm::length(d);
     Ray r(info.point, dir);

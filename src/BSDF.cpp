@@ -141,13 +141,16 @@ BSDF::BSDF(hitInfo& info)
         bxdfs.push_back(std::make_shared<specular_reflection_transmission>(localwi, mat->Ni));
         isallType = true;
     }
-    else if (glm::length(mat->Ks) > 0.01)      //反射/specular
+    else if (glm::length(mat->Ks) )      //反射/specular
     {
         if(ns>=10000)
         {
             bxdfs.push_back(std::make_shared<specular_reflection>(localwi));        //完全镜面反射
         }
-        else bxdfs.push_back(std::make_shared<Specular>(ks, ns, localwi)); 
+        else 
+        {
+            bxdfs.push_back(std::make_shared<Specular>(ks, ns, localwi));
+        }
     }
     bxdfs.push_back(std::make_shared<Diffuse>(kd, localwi));
     get_sample_weight();

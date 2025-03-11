@@ -75,7 +75,7 @@ class specular_reflection :public Scatter
 {
 public:
     specular_reflection(const vec3& wo) : Scatter(Color3f(1)), m_wo(wo) {}
-    virtual Color3f Fx(const vec3& wi) const override { return Color3f(0); }
+    virtual Color3f Fx(const vec3& wi) const override { return Color3f(0.f); }
     virtual Scatterinfo Sample() const override;
     virtual float Pdf(const vec3& wi) const override { return 0.f; }
 private:

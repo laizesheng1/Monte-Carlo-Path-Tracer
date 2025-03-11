@@ -4,11 +4,11 @@
 int main(int argc, char** argv)
 {
 	//Model model("../example-scenes-cg24/bathroom2/bathroom2.obj");
-	Model model("../example-scenes-cg24/cornell-box/cornell-box.obj");
+	//Model model("../example-scenes-cg24/cornell-box/cornell-box.obj");
 	//Model model("../example-scenes-cg24/veach-mis/veach-mis.obj");
 	//Model model("D:/Users/laizesheng/Desktop/example-scenes-cg24/veach-mis/veach-mis.obj");
 	//Model model("D:/Users/laizesheng/Desktop/example-scenes-cg24/cornell-box/cornell-box.obj");
-	//Model model("D:/Users/laizesheng/Desktop/example-scenes-cg24/bathroom2/bathroom2.obj");
+	Model model("D:/Users/laizesheng/Desktop/example-scenes-cg24/bathroom2/bathroom2.obj");
 	cout << model.face.size() << " " << model.normal.size() << " " << model.vertex.size() << endl;
 	int w = model.camerainfo.width, h = model.camerainfo.height;
 	Scene scene(w, h);
@@ -30,5 +30,6 @@ int main(int argc, char** argv)
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 	}
+	scene.save_image(frame);
 	glfwTerminate();
 }
