@@ -16,9 +16,9 @@ class Scene
 {
 public:
 	Scene(int width, int heigh);
-	void set_Pixel(const Point2i& location, Color3f& color);
-	const Color3b* getPixelsColor();
-	void save_image(int frame, std::string filename);
+	void set_Pixel(const Point2i& location, Color3f& color);	//累加颜色值
+	const Color3b* getPixelsColor();		//获取多次反射后的颜色值
+	void save_image(int frame, std::string filename);		//保存图片
 private:
 	int w, h;
 	std::unique_ptr<Pixels[]> m_Pixels;

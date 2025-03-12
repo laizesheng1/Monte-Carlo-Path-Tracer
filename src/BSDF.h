@@ -31,7 +31,9 @@ struct Scatterinfo
 	vec3 wo;		//反射之后的方向
 	vec3 f;	    //颜色
 	float pdf;		//
+    bool isMirrorReflect = false;       //是否为镜面反射
     Scatterinfo(vec3 d, vec3 c, double p) :wo(d), f(c), pdf(p) {}
+    Scatterinfo(vec3 d, vec3 c, double p,bool is) :wo(d), f(c), pdf(p) , isMirrorReflect(is){}
     Scatterinfo() {}
 };
 
@@ -47,7 +49,7 @@ public:
     float weight;
 };
 
-class Diffuse : public Scatter
+class Diffuse : public Scatter      //lambert
 {
 public:
     Diffuse(const Color3f& r, const vec3& wo) : Scatter(r), m_wo(wo) {}
@@ -58,7 +60,7 @@ private:
     vec3 m_wo;      //local wi
 };
 
-class Specular : public Scatter
+class Specular : public Scatter         //Blinn-Phong
 {
 public:
     Specular(const Color3f& r, float co, const vec3& wo)
@@ -71,7 +73,7 @@ private:
     vec3 m_wo;
 };
 
-class specular_reflection :public Scatter
+class specular_reflection :public Scatter       //mirror reflection
 {
 public:
     specular_reflection(const vec3& wo) : Scatter(Color3f(1)), m_wo(wo) {}
@@ -82,7 +84,7 @@ private:
     vec3 m_wo;
 };
 
-class specular_reflection_transmission : public Scatter
+class specular_reflection_transmission : public Scatter     //all /don't use
 {
 public:
     specular_reflection_transmission(const vec3& wo,const float& ni)
@@ -117,6 +119,5 @@ public:
     Scatterinfo lambertian_diffuse(hitInfo& info);
     Scatterinfo blinn_phong_specular(hitInfo& info);
     Scatterinfo specular_reflection_and_transmission(hitInfo& info);
-
 };
 #endif

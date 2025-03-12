@@ -14,12 +14,13 @@ class BVH;
 struct hitInfo
 {
 	double t = 0;	//time
-	dvec3 wi = dvec3(0);	//
+	dvec3 wi = dvec3(0);		//入射方向
 	dvec3 point = dvec3(0);		//point of intersection 
 	dvec3 normal = dvec3(0);
 	dvec2 uv = dvec2(0);
-	bool front = false;
+	bool front = false;		//用于计算反射时是否打到光源
 	std::shared_ptr<Material> mtl = nullptr;
+	float lightarea=0.f;		//计算pdf
 };
 
 struct Ray
@@ -41,7 +42,6 @@ struct Camera
 
 struct lightinfo
 {
-	std::shared_ptr<Triangle> light;
 	vec3 wo;
 	vec3 f;
 	float pdf;

@@ -9,12 +9,6 @@ AABB AABB::Union(dvec3 point) const {
 	return AABB(glm::min(A, point), glm::max(B, point));
 }
 
-bool AABB::contain(dvec3 point) {
-	return (point.x >= A.x) && (point.y <= B.x) &&
-		(point.y >= A.y) && (point.y <= B.y) &&
-		(point.z >= A.z) && (point.z <= B.z);
-}
-
 int AABB::max_axis() {
 	int axis = 0;
 	auto len = B.x - A.x;
@@ -26,11 +20,6 @@ int AABB::max_axis() {
 		}
 	}
 	return axis;
-}
-
-Point3f AABB::Center() const
-{
-	return (A + B) / 2.0;
 }
 
 bool AABB::Intersection(const Ray& ray) const {

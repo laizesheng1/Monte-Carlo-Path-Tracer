@@ -3,15 +3,11 @@
 
 vec3 Diffuse::Fx(const vec3& wi) const
 {
-    //return (wi.z < 0 || m_wo.z < 0) ? vec3(0) : (reflect / PI);
     return reflect / PI;
 }
 
 Scatterinfo Diffuse::Sample() const
 {    
-/*    if (m_wo.z < 0.f) {
-        return Scatterinfo(vec3(0), vec3(0), 0.f);
-    } */   
     vec3 f = reflect / PI;
     float phi = rand1f() * 2 * PI;
     float theta = 0.5f * acos(1 - 2 * rand1f());
@@ -20,23 +16,22 @@ Scatterinfo Diffuse::Sample() const
         sin(theta) * sin(phi),
         cos(theta)
     );
-    //vec3 f = Fx(dir);
     float pdf = std::abs(dir.z) / PI;
     return Scatterinfo(dir, f, pdf);
 }
 
 float Diffuse::Pdf(const vec3& wi) const
 {
-    return (wi.z < 0 || m_wo.z < 0) ? 0.f : (wi.z / PI);
+    return (wi.z < 0.f || m_wo.z < 0.f) ? 0.f : (wi.z / PI);
 }
 
 vec3 Specular::Fx(const vec3& wi) const
 {
-    if (wi.z < 0 || m_wo.z < 0)
-        return vec3(0);
-    auto H = glm::normalize(wi + m_wo);
-    float normFactor = (coefficient + 2) / (2.f * PI);
-    return reflect * normFactor * std::pow(H.z, coefficient);
+    if (wi.z < 0.f || m_wo.z < 0.f)
+        return vec3(0.f);
+    auto H = glm::normalize(wi + m_wo);     //°ë³ÌÏòÁ¿
+    float factor = (coefficient + 2) / (2.f * PI);
+    return reflect * factor * std::pow(H.z, coefficient);
 }
 
 Scatterinfo Specular::Sample() const
@@ -59,19 +54,19 @@ Scatterinfo Specular::Sample() const
     {
         return Scatterinfo(vec3(0), vec3(0), 0.f);
     }
-    // TODO: pdf normalization
+    //pdf normalization
     auto pdf = (coefficient + 1) / (2.f * PI) * std::pow(cosTheta, coefficient);
     return {wi, Fx(wi), pdf};
 }
 
 float Specular::Pdf(const vec3& wi) const
 {
-    if (m_wo.z < 0 || wi.z < 0)
+    if (m_wo.z < 0.f || wi.z < 0.f)
     {
         return 0.f;
     }
     auto H = glm::normalize(wi + m_wo);
-    // TODO: pdf normalization
+    //pdf normalization
     return (coefficient + 1) / (2.f * PI) * std::pow(H.z, coefficient);
 }
 
@@ -81,7 +76,7 @@ Scatterinfo specular_reflection::Sample() const
         return Scatterinfo(vec3(0), vec3(0), 0.f);
     auto wo = vec3(-m_wo.x, -m_wo.y, m_wo.z);
     auto f = Color3f(1.f) / m_wo.z;
-    return { wo,f, 1.f };
+    return { wo,f, 1.f ,true};
 }
 
 Scatterinfo specular_reflection_transmission::Sample() const

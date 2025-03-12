@@ -155,82 +155,6 @@ Model::Model(string filename)
     }
 }
 
-//void Model::load_Model(string filename) {
-//    // Load OBJ file using tinyobjloader
-//    tinyobj::attrib_t attrib;
-//    vector<tinyobj::shape_t> shapes;
-//    vector<tinyobj::material_t> materials;
-//
-//    string err;
-//    bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &err, filename.c_str());
-//
-//    if (!ret) {
-//        cerr << "Error loading OBJ file: " << err << endl;
-//        return;
-//    }
-//
-//    // 材料映射
-//    map<string, Material> material_map;
-//    vector<Triangle> triangles;
-//
-//    // 处理材质
-//    for (const auto& mtl : materials) {
-//        // 将材质信息映射到 Material 类实例
-//        Material mtl_instance;
-//        // 填充 mtl_instance, 例如:
-//        // mtl_instance.color = glm::dvec3(mtl.diffuse[0], mtl.diffuse[1], mtl.diffuse[2]);
-//        material_map[mtl.name] = mtl_instance;
-//    }
-//
-//    // 遍历所有形状和面
-//    for (const auto& shape : shapes) {
-//        for (size_t f = 0; f < shape.mesh.num_face_vertices.size(); ++f) {
-//            size_t num_face_vertices = size_t(shape.mesh.num_face_vertices[f]);
-//
-//            // 每个面是一个三角形
-//            if (num_face_vertices != 3) continue;
-//
-//            Triangle tri;  // 假设第一个材质
-//
-//            // 获取三角形的顶点索引、法线索引、纹理坐标索引
-//            for (size_t v = 0; v < 3; ++v) {
-//                int idx = shape.mesh.indices[f * 3 + v];
-//
-//                // 顶点坐标
-//                tri.v[v] = dvec3(attrib.vertices[3 * idx + 0],
-//                    attrib.vertices[3 * idx + 1],
-//                    attrib.vertices[3 * idx + 2]);
-//
-//                // 法线
-//                if (!attrib.normals.empty()) {
-//                    int vn_idx = shape.mesh.indices[f * 3 + v].normal_index;
-//                    tri.vn[v] = dvec3(attrib.normals[3 * vn_idx + 0],
-//                        attrib.normals[3 * vn_idx + 1],
-//                        attrib.normals[3 * vn_idx + 2]);
-//                }
-//
-//                // 纹理坐标
-//                if (!attrib.texcoords.empty()) {
-//                    int uv_idx = shape.mesh.indices[f * 3 + v].texcoord_index;
-//                    tri.uv[v] = dvec2(attrib.texcoords[2 * uv_idx + 0],
-//                        attrib.texcoords[2 * uv_idx + 1]);
-//                }
-//            }
-//
-//            // 计算包围盒
-//            tri.A = tri.B = tri.v[0];
-//            for (int i = 1; i < 3; ++i) {
-//                tri.A = glm::min(tri.A, tri.v[i]);
-//                tri.B = glm::max(tri.B, tri.v[i]);
-//            }
-//
-//            // 将三角形加入到三角形列表
-//            triangles.push_back(tri);
-//        }
-//    }
-//    cout << "Loaded " << triangles.size() << " triangles from " << filename << endl;
-//}
-
 void Model::load_material(string filename)
 {
     std::filesystem::path pathObj(filename);
@@ -354,6 +278,4 @@ void Model::loadCameraFromXML(const std::string& filename) {
         radiance.z = std::stod(radianceStr.substr(comma2 + 1));
         camerainfo.lightinfo[light_mtl] = radiance;
     }
-    /*camerainfo.print();
-    lightinfo.print();*/
 }

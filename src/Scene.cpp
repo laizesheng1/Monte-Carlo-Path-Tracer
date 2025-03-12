@@ -33,10 +33,8 @@ const Color3b* Scene::getPixelsColor()
 }
 
 void Scene::save_image(int frame,std::string filename)
-{
-    size_t lastDotPos = filename.rfind('/');
-    std::string file_name=filename.substr(lastDotPos + 1);
-    std::string file = "../results/" +file_name + std::to_string(frame) + ".png";
+{    
+    std::string file = "../results/" + filename + std::to_string(frame) + ".png";
     std::vector<Color3b> flippedPixels(w * h);
     const Color3b* pixels = getPixelsColor();
     for (int y = 0; y < h; y++) {

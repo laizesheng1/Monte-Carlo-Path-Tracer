@@ -16,10 +16,8 @@ public:
 
     AABB Union(AABB& box) const;
     AABB Union(dvec3 point) const;
-	bool contain(dvec3 point);
 	int max_axis();
     bool Intersection(const Ray& ray) const;
-    Point3f Center() const;
 public:
     dvec3 A,B;
 };

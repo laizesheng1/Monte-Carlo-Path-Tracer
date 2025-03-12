@@ -62,8 +62,8 @@ void Render::render(Scene& scene)
     {
         int x = i % w, y = i / w;
         Ray ray = cast_Ray(x, y);
-        Color3f color = ray_tracing(ray, 0);
-        //Color3f color = ray_tracing(ray);
+        //Color3f color = ray_tracing(ray, 0);      //递归
+        Color3f color = ray_tracing(ray);       //非递归
         scene.set_Pixel({ x,y }, color);
     }
 }
@@ -137,13 +137,11 @@ Color3f Render::ray_tracing(Ray& ray)
             L += vec3(mat->radiance);
         BSDF bsdf(info);
         auto lightsample = sample(info);
-        if (lightsample.pdf != 0 && !bvh->has_hit(lightsample.ray))
-        {
-            
+        if (lightsample.pdf != 0 && !bvh->has_hit(lightsample.ray))     //光源采样
+        {            
             float cos_theta = std::fabs(glm::dot(vec3(info.normal), lightsample.wo));
-            float weight = power_heuristic(lightsample.pdf/ float(lights.size()), bsdf.Pdf(lightsample.wo));  // 平衡启发式重要性采样
-            L += beta * vec3(lightsample.light->mtl->radiance) * bsdf.Fx(lightsample.wo) * cos_theta / lightsample.pdf * weight * float(lights.size());
-            //L += vec3(lightsample.light->mtl->radiance) * info.mtl->Map_Kd->get_color(info.uv) *beta * std::fabs(glm::dot(vec3(info.normal), lightsample.wo)) / lightsample.pdf;    //跑Cornell-box
+            float weight = power_heuristic(lightsample.pdf / float(lights.size()), bsdf.Pdf(lightsample.wo));    // 多重重要性采样
+            L += weight * beta * vec3(lightsample.f) * bsdf.Fx(lightsample.wo) * cos_theta / lightsample.pdf * float(lights.size());
         }
 
         //BSDF采样
@@ -156,18 +154,27 @@ Color3f Render::ray_tracing(Ray& ray)
         float cos_theta = std::fabs(glm::dot(vec3(info.normal), scat_info.wo));
         beta *= scat_info.f * cos_theta / scat_info.pdf;
         
-        //hitInfo nextInfo;
-        //if (!bvh->hit(new_ray, nextInfo))
-        //    break;
-        //if (glm::length(nextInfo.mtl->radiance)&&nextInfo.front)      //如果newray从光源出发
-        //{
-        //    auto d = info.point - nextInfo.point;
-        //    auto dist2 = glm::length(d)* glm::length(d);
-        //    auto cosine = glm::dot(glm::normalize(d), nextInfo.normal);
-        //    auto lightPdf = dist2 / cosine / float(lights.size());     //除info.point所在light的面积
-        //    auto weight = power_heuristic(scat_info.pdf, lightPdf);
-        //    L += beta * vec3(nextInfo.mtl->radiance)* weight;
-        //}
+        hitInfo nextInfo;
+        Ray tmp = new_ray;
+        if (!bvh->hit(tmp, nextInfo))       //注意会更新ray hitinfo
+            break;
+        if (glm::length(nextInfo.mtl->radiance)&&nextInfo.front)      //如果newray从光源出发
+        {
+            if(scat_info.isMirrorReflect)
+            {
+                L += beta * vec3(nextInfo.mtl->radiance);
+            }
+            else{
+                auto d = info.point - nextInfo.point;
+                auto dist2 = glm::length(d) * glm::length(d);
+                auto cosine = glm::dot(glm::normalize(d), nextInfo.normal);
+                float lightPdf = 0.f;
+                if (cosine != 0)
+                    lightPdf = dist2 / cosine / float(lights.size()) / nextInfo.lightarea;      //除nextinfo.point所在light的面积
+                auto weight = power_heuristic(scat_info.pdf, lightPdf);
+                L += beta * vec3(nextInfo.mtl->radiance) * weight;
+            }
+        }
         // Russian roulette
         if (bounces > 3)
         {
@@ -177,11 +184,12 @@ Color3f Render::ray_tracing(Ray& ray)
             beta /= q;
         }
         ray = new_ray;
+        info = nextInfo;
     }
     return L;
 }
 
-Color3f Render::sample_light(hitInfo& info)
+Color3f Render::sample_light(hitInfo& info)     //采样光源
 {
     int cnt = lights.size();
     int idx = std::min(static_cast<int>(rand1f() * cnt), cnt - 1);
@@ -193,7 +201,9 @@ Color3f Render::sample_light(hitInfo& info)
     vec3 dir = glm::normalize(d);
     float d2 = glm::dot(d, d);
     float cos = glm::dot(-dir, normal);
-    float pdf = d2 / cos / light->area() ;
+    float pdf = 0.f;
+    if (cos != 0)
+        pdf = d2 / cos / light->area();
 
     float t = glm::length(d);
     Ray r(info.point, dir);
@@ -204,7 +214,7 @@ Color3f Render::sample_light(hitInfo& info)
     return vec3(0);
 }
 
-lightinfo Render::sample(hitInfo& info)
+lightinfo Render::sample(hitInfo& info)     //采样光源，用于计算非递归光源采样
 {
     int cnt = lights.size();
     int idx = std::min(static_cast<int>(rand1f() * cnt), cnt - 1);
@@ -216,10 +226,13 @@ lightinfo Render::sample(hitInfo& info)
     vec3 dir = glm::normalize(d);
     float d2 = glm::dot(d, d);
     float cos = glm::dot(-dir, normal);
-    float pdf = d2 / cos / light->area();
+    float pdf = 0.f;
+    if(cos!=0)
+        pdf = d2 / cos / light->area();     //
+
     vec3 f = vec3(light->mtl->radiance);
     float t = glm::length(d);
     Ray r(info.point, dir);
     r.t2 = t;
-    return { light,dir,f,pdf ,r};
+    return { dir,f,pdf ,r};
 }
