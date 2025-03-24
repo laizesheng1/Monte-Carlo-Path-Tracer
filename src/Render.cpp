@@ -105,17 +105,7 @@ Color3f Render::ray_tracing(Ray& ray, int depth)
     auto L = sample_light(info);
 
     BSDF bsdf(info);
-    scat_info = bsdf.Sample();
-       
-    //BRDF brdf;
-    //if (mat->Ni > 1) {
-    //    scat_info = brdf.specular_reflection_and_transmission(info);
-    //}
-    //else if (glm::length(mat->Ks)) {
-    //    scat_info = brdf.blinn_phong_specular(info);
-    //}
-    //else
-    //    scat_info = brdf.lambertian_diffuse(info);
+    scat_info = bsdf.Sample();      
 
     if (glm::length(scat_info.wo) < 0.00001f)
         return vec3(0);
@@ -202,7 +192,7 @@ Color3f Render::sample_light(hitInfo& info)     //采样光源
     float d2 = glm::dot(d, d);
     float cos = glm::dot(-dir, normal);
     float pdf = 0.f;
-    if (cos != 0)
+    //if (cos != 0)
         pdf = d2 / cos / light->area();
 
     float t = glm::length(d);

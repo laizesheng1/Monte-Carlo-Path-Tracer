@@ -111,13 +111,4 @@ public:
 private:
     coordiantetransform onb;
 };
-
-class BRDF
-{
-public:
-    BRDF() {}
-    Scatterinfo lambertian_diffuse(hitInfo& info);
-    Scatterinfo blinn_phong_specular(hitInfo& info);
-    Scatterinfo specular_reflection_and_transmission(hitInfo& info);
-};
 #endif

@@ -6,10 +6,10 @@ int main(int argc, char** argv)
 	string filename;
 	//filename = "../example-scenes-cg24/bathroom2/bathroom2.obj";
 	//filename = "../example-scenes-cg24/veach-mis/veach-mis.obj";
-	//filename = "../example-scenes-cg24/cornell-box/cornell-box.obj";
+	filename = "../example-scenes-cg24/cornell-box/cornell-box.obj";
 	//filename = "D:/Users/laizesheng/Desktop/example-scenes-cg24/veach-mis/veach-mis.obj";
 	//filename = "D:/Users/laizesheng/Desktop/example-scenes-cg24/cornell-box/cornell-box.obj";
-	filename = "D:/Users/laizesheng/Desktop/example-scenes-cg24/bathroom2/bathroom2.obj";
+	//filename = "D:/Users/laizesheng/Desktop/example-scenes-cg24/bathroom2/bathroom2.obj";
 	Model model(filename);
 	cout << model.face.size() << " " << model.normal.size() << " " << model.vertex.size() << endl;
 	int w = model.camerainfo.width, h = model.camerainfo.height;
