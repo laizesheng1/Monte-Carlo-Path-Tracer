@@ -79,49 +79,6 @@ Scatterinfo specular_reflection::Sample() const
     return { wo,f, 1.f ,true};
 }
 
-Scatterinfo specular_reflection_transmission::Sample() const
-{
-    auto backface = m_wo.z < 0.f;
-    float eta_o = 1.f, eta_i = Ni;
-    if (backface)
-        std::swap(eta_o, eta_i);
-    vec3 n = backface ? vec3(0, 0, -1) : vec3(0, 0, 1);
-    float cos_o = backface ? -m_wo.z : m_wo.z;
-    float sin_o = std::sqrt(1.f - cos_o * cos_o);
-    float sin_i = eta_o / eta_i * sin_o;
-    float cos_i = 0.f;
-
-    // calculate fresnel
-    float fresnel = 0.f;
-    if (sin_i > 1.f)
-        fresnel = 1.f;
-    else
-    {
-        cos_i = std::sqrt(1.f - sin_i * sin_i);
-        fresnel = calculateFresnelDielectric(eta_o, eta_i, cos_o, cos_i);
-    }
-
-    Scatterinfo info;
-    if (rand1f() < fresnel)
-    {
-        auto wo = vec3(-m_wo.x, -m_wo.y, m_wo.z);
-        info.f = fresnel * Color3f(1.f) / std::abs(wo.z);
-        info.wo = wo;
-        info.pdf = fresnel;
-        //LOG_INFO("reflect, fresnel: {}", fresnel);
-    }
-    else
-    {
-        auto eta = eta_o / eta_i;
-        auto wo = -eta * m_wo + (eta * cos_o - cos_i) * n;
-        info.f = (1 - fresnel) * Color3f(1) * eta * eta / cos_i;
-        info.wo = wo;
-        info.pdf = 1.f - fresnel;
-        //LOG_INFO("transmit, cos: {}->{}", cos_o, cos_i);
-    }
-    return info;
-}
-
 BSDF::BSDF(hitInfo& info)
 {   
     onb = coordiantetransform(info.normal);
@@ -131,12 +88,7 @@ BSDF::BSDF(hitInfo& info)
     auto ks = mat->Ks;
     auto ns = mat->Ns;
 
-    if (mat->Ni > 1)       //Õ∏…‰transmission
-    {
-        bxdfs.push_back(std::make_shared<specular_reflection_transmission>(localwi, mat->Ni));
-        isallType = true;
-    }
-    else if (glm::length(mat->Ks) )      //∑¥…‰/specular
+    if (glm::length(mat->Ks) )      //∑¥…‰/specular
     {
         if(ns>=10000)
         {

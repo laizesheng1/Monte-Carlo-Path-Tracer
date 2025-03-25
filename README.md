@@ -9,8 +9,8 @@
 
 # 三、代码结构
 
-  	AABB实现三角形的层次包围盒，用于构造BVH树。
-  	BSDF实现漫反射、Blinn-Phong高光、镜面反射、高光+反射+透射几种BXDF类型，其中透射在给定模型并没有使用到，用于render的bsdf采样。
+  	AABB实现三角形的层次包围盒，用于构造更加平衡高效的BVH树。
+  	BSDF实现漫反射、Blinn-Phong高光、镜面反射几种BXDF类型，用于Render的bsdf采样。
   	BVH用于加速三角形与光线的相交测试。
   	model用于加载模型、纹理、材料以及相机参数。
   	 Render用于渲染模型，cast_Ray模拟发射光线，ray_tracing实现蒙特卡洛光线追踪方法，sample_light实现光源采样，ray_tracing实现了递归、非递归两种方式用于对比渲染速度。

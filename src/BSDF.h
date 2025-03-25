@@ -84,19 +84,6 @@ private:
     vec3 m_wo;
 };
 
-class specular_reflection_transmission : public Scatter     //all /don't use
-{
-public:
-    specular_reflection_transmission(const vec3& wo,const float& ni)
-        : Scatter(Color3f(1)), m_wo(wo), Ni(ni) {}
-    virtual Color3f Fx(const vec3& wi) const override { return Color3f(0); }
-    virtual Scatterinfo Sample() const override;
-    virtual float Pdf(const vec3& wi) const override { return 0.f; }
-private:
-    vec3 m_wo;
-    float Ni;
-};
-
 class BSDF
 {
 public:

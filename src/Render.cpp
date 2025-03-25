@@ -72,11 +72,11 @@ Ray Render::cast_Ray(int x, int y)
 {
     double h = std::tan(camera.fov * std::_Pi_val / 180.0 * 0.5) * 2.0;
     double aspect_ratio = static_cast<double>(camera.w) / camera.h;
+    double w = aspect_ratio * h;
     dvec3 front = glm::normalize(camera.lookat - camera.eye);
     dvec3 right = glm::normalize(glm::cross(front, camera.up));
     dvec3 ver = camera.up * h;
     dvec3 hor = right * h * aspect_ratio;
-
     double u = (x + rand1f()) / model.camerainfo.width;
     double v = (y + rand1f()) / model.camerainfo.height;
     dvec3 pos = camera.eye + front + (u - 0.5) * hor + (v - 0.5) * ver;
@@ -157,7 +157,8 @@ Color3f Render::ray_tracing(Ray& ray)
             else{
                 auto d = info.point - nextInfo.point;
                 auto dist2 = glm::length(d) * glm::length(d);
-                auto cosine = glm::dot(glm::normalize(d), nextInfo.normal);
+                //auto cosine = glm::dot(glm::normalize(d), nextInfo.normal);
+                auto cosine = fabs(glm::dot(glm::normalize(d), nextInfo.normal));
                 float lightPdf = 0.f;
                 if (cosine != 0)
                     lightPdf = dist2 / cosine / float(lights.size()) / nextInfo.lightarea;      //除nextinfo.point所在light的面积
@@ -165,13 +166,13 @@ Color3f Render::ray_tracing(Ray& ray)
                 L += beta * vec3(nextInfo.mtl->radiance) * weight;
             }
         }
-        // Russian roulette
+        
         if (bounces > 3)
         {
             auto q = std::min(std::max(std::max(beta.x, beta.y), beta.z), 0.95f);
             if (rand1f() > q)
                 break;
-            beta /= q;
+            beta /= q;            
         }
         ray = new_ray;
         info = nextInfo;
@@ -216,6 +217,7 @@ lightinfo Render::sample(hitInfo& info)     //采样光源，用于计算非递归光源采样
     vec3 dir = glm::normalize(d);
     float d2 = glm::dot(d, d);
     float cos = glm::dot(-dir, normal);
+    //float cos = fabs(glm::dot(-dir, normal));
     float pdf = 0.f;
     if(cos!=0)
         pdf = d2 / cos / light->area();     //
