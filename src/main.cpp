@@ -5,9 +5,9 @@ int main(int argc, char** argv)
 {
 	string filename;
 	//filename = "../example-scenes-cg24/bathroom2/bathroom2.obj";
-	filename = "../example-scenes-cg24/veach-mis/veach-mis.obj";
+	//filename = "../example-scenes-cg24/veach-mis/veach-mis.obj";
 	//filename = "../example-scenes-cg24/cornell-box/cornell-box.obj";
-	//filename = "D:/Users/laizesheng/Desktop/example-scenes-cg24/veach-mis/veach-mis.obj";
+	filename = "D:/Users/laizesheng/Desktop/example-scenes-cg24/veach-mis/veach-mis.obj";
 	//filename = "D:/Users/laizesheng/Desktop/example-scenes-cg24/cornell-box/cornell-box.obj";
 	//filename = "D:/Users/laizesheng/Desktop/example-scenes-cg24/bathroom2/bathroom2.obj";
 	Model model(filename);

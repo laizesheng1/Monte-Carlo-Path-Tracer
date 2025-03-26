@@ -70,9 +70,8 @@ void Render::render(Scene& scene)
 
 Ray Render::cast_Ray(int x, int y)
 {
-    double h = std::tan(camera.fov * std::_Pi_val / 180.0 * 0.5) * 2.0;
+    /*double h = std::tan(camera.fov * std::_Pi_val / 180.0 * 0.5) * 2.0;
     double aspect_ratio = static_cast<double>(camera.w) / camera.h;
-    double w = aspect_ratio * h;
     dvec3 front = glm::normalize(camera.lookat - camera.eye);
     dvec3 right = glm::normalize(glm::cross(front, camera.up));
     dvec3 ver = camera.up * h;
@@ -81,6 +80,14 @@ Ray Render::cast_Ray(int x, int y)
     double v = (y + rand1f()) / model.camerainfo.height;
     dvec3 pos = camera.eye + front + (u - 0.5) * hor + (v - 0.5) * ver;
     dvec3 dir = glm::normalize(pos - camera.eye);
+    return Ray(camera.eye, dir);*/
+
+    double h = std::tan(camera.fov * std::_Pi_val / 180.0 * 0.5) * 2.0;
+    dvec3 front = glm::normalize(camera.lookat - camera.eye);
+    dvec3 right = glm::normalize(glm::cross(front, camera.up));
+    double u = ((x + rand1f()) / camera.w - 0.5) * h * camera.w / camera.h;
+    double v = ((y + rand1f()) / camera.h - 0.5) * h;
+    dvec3 dir = glm::normalize(front + u * right + v * camera.up);
     return Ray(camera.eye, dir);
 }
 
@@ -129,7 +136,7 @@ Color3f Render::ray_tracing(Ray& ray)
         auto lightsample = sample(info);
         if (lightsample.pdf != 0 && !bvh->has_hit(lightsample.ray))     //光源采样
         {            
-            float cos_theta = std::fabs(glm::dot(vec3(info.normal), lightsample.wo));
+            float cos_theta = glm::dot(vec3(info.normal), lightsample.wo);
             float weight = power_heuristic(lightsample.pdf / float(lights.size()), bsdf.Pdf(lightsample.wo));    // 多重重要性采样
             L += weight * beta * vec3(lightsample.f) * bsdf.Fx(lightsample.wo) * cos_theta / lightsample.pdf * float(lights.size());
         }
@@ -157,8 +164,7 @@ Color3f Render::ray_tracing(Ray& ray)
             else{
                 auto d = info.point - nextInfo.point;
                 auto dist2 = glm::length(d) * glm::length(d);
-                //auto cosine = glm::dot(glm::normalize(d), nextInfo.normal);
-                auto cosine = fabs(glm::dot(glm::normalize(d), nextInfo.normal));
+                auto cosine = glm::dot(glm::normalize(d), nextInfo.normal);
                 float lightPdf = 0.f;
                 if (cosine != 0)
                     lightPdf = dist2 / cosine / float(lights.size()) / nextInfo.lightarea;      //除nextinfo.point所在light的面积
@@ -217,7 +223,6 @@ lightinfo Render::sample(hitInfo& info)     //采样光源，用于计算非递归光源采样
     vec3 dir = glm::normalize(d);
     float d2 = glm::dot(d, d);
     float cos = glm::dot(-dir, normal);
-    //float cos = fabs(glm::dot(-dir, normal));
     float pdf = 0.f;
     if(cos!=0)
         pdf = d2 / cos / light->area();     //
