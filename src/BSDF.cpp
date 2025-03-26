@@ -3,11 +3,15 @@
 
 vec3 Diffuse::Fx(const vec3& wi) const
 {
+    //if (wi.z<0||m_wo.z<0)       //wi为反射的方向，m_wo为光线方向的反方向
+    //    return vec3(0.0f);        //加了浴室模型有黑色（法向量反了）
     return reflect / PI;
 }
 
 Scatterinfo Diffuse::Sample() const
-{    
+{   
+    if (m_wo.z < 0)
+        return Scatterinfo(vec3(0.0f), vec3(0.0f), 0);
     vec3 f = reflect / PI;
     float phi = rand1f() * 2 * PI;
     float theta = 0.5f * acos(1 - 2 * rand1f());
@@ -17,7 +21,8 @@ Scatterinfo Diffuse::Sample() const
         cos(theta)
     );
     float pdf = std::abs(dir.z) / PI;
-    return Scatterinfo(dir, f, pdf);
+    //return Scatterinfo(dir, Fx(dir), pdf);        //对于veach-mis
+    return Scatterinfo(dir, f, pdf);            //对于bathroom
 }
 
 float Diffuse::Pdf(const vec3& wi) const
